@@ -2,7 +2,7 @@
 
 Evidence-grounded urban air-quality intelligence, piloting in **Jaipur, Rajasthan**.
 
-> **Status: Day 5.** Real Jaipur air-quality data (OpenAQ stations, Open-Meteo model) with a Hawa AI-calculated CPCB AQI; dashboard, interactive pollution map, **Air Guardian** (Gemini tool calling, grounded answers with evidence, English and Hindi), an **AI Daily Air Brief**, the **Exposure planner** (deterministic forecast ranking with an optional grounded AI explanation), the **AI civic pollution reporter** (anonymous photo reports analysed by Gemini vision, shown on the map) and **City insights** (7-day trends, station comparison and daily rhythm calculated in code, with an optional AI interpretation). No sign-in yet; Settings is a placeholder.
+> **Status: Day 6 (feature-complete for the hackathon).** Real Jaipur air-quality data (OpenAQ stations, Open-Meteo model) with a Hawa AI-calculated CPCB AQI; dashboard, interactive pollution map, **Air Guardian** (Gemini tool calling, grounded answers with evidence, English and Hindi), an **AI Daily Air Brief**, the **Exposure planner** (deterministic forecast ranking with an optional grounded AI explanation), the **AI civic pollution reporter** (anonymous photo reports analysed by Gemini vision, shown on the map) and **City insights** (7-day trends, station comparison and daily rhythm calculated in code, with an optional AI interpretation). A **guided demo** (`/demo`) walks through everything on live data with readiness checks. No sign-in yet; Settings is a placeholder and is not in the navigation.
 
 ## Stack
 
@@ -52,6 +52,7 @@ npx playwright install chromium
 | `/planner` | Exposure planner (forecast ranking in code; AI explanation in English or Hindi) | Built; AI part needs `GEMINI_API_KEY` |
 | `/reports`, `/reports/new` | Civic reports: anonymous photo reports with AI analysis | Built; needs `GEMINI_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` |
 | `/insights` | City insights: 7-day trends, station comparison, daily rhythm, AI interpretation | Built; AI part needs `GEMINI_API_KEY` |
+| `/demo` | Guided demo: live readiness checks (no provider or AI calls) and the 3-minute script with deep links | Built |
 | `/settings` | Settings | Placeholder |
 | `/api/health` | Liveness check | Built |
 | `/api/air-quality?location=<slug>` | Latest measured and modelled data for an area | Built |

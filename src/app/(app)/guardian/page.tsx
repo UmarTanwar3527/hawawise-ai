@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   title: "Air Guardian",
 };
 
-export default function GuardianPage() {
+export default function GuardianPage({ searchParams }: PageProps<"/guardian">) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -27,15 +27,18 @@ export default function GuardianPage() {
         Air Guardian gives general air-quality information. It does not diagnose conditions or replace advice from a medical professional.
       </div>
       <Suspense fallback={<Skeleton className="h-[560px] w-full rounded-card" />}>
-        <GuardianContent />
+        <GuardianContent searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
 
-async function GuardianContent() {
+async function GuardianContent({ searchParams }: { searchParams: PageProps<"/guardian">["searchParams"] }) {
   // The configuration check reads server environment at request time.
   await connection();
+  const { q } = await searchParams;
+  // Pre-fill only (never auto-sent); same length limit as the chat API.
+  const initialQuestion = typeof q === "string" ? q.trim().slice(0, 1000) : "";
   if (!isGeminiConfigured()) {
     return (
       <Card>
@@ -47,5 +50,5 @@ async function GuardianContent() {
       </Card>
     );
   }
-  return <GuardianChat />;
+  return <GuardianChat initialQuestion={initialQuestion} />;
 }

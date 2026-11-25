@@ -17,6 +17,7 @@ import { HourlyTrendChart } from "@/features/air-quality/components/dashboard/ho
 import { JaipurMap } from "@/features/air-quality/components/dashboard/jaipur-map";
 import { LocationSelector } from "@/features/air-quality/components/dashboard/location-selector";
 import { ModelledCard } from "@/features/air-quality/components/dashboard/modelled-card";
+import { NextSteps } from "@/features/air-quality/components/dashboard/next-steps";
 import { PollutantGrid } from "@/features/air-quality/components/dashboard/pollutant-grid";
 import { SourceCard } from "@/features/air-quality/components/dashboard/source-card";
 import { ProvenanceBadge } from "@/features/air-quality/components/provenance-badge";
@@ -159,6 +160,8 @@ async function DashboardContent({ searchParams }: { searchParams: PageProps<"/da
           </div>
         </Card>
         <DailyBriefCard brief={brief} now={now} />
+
+        <NextSteps className="lg:col-span-3" slug={slug} areaName={current.location.name} />
 
         <ForecastDays className="lg:col-span-3" forecast={forecast} generatedAt={generatedAt} />
 

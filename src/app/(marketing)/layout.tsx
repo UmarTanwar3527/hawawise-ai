@@ -7,7 +7,8 @@ import { Icon } from "@/components/ui/icon";
 import { siteConfig } from "@/config/site";
 
 const sectionLinks = [
-  { href: "/#modules", label: "Modules" },
+  { href: "/#modules", label: "What it does" },
+  { href: "/demo", label: "Guided demo" },
   { href: "/#data-integrity", label: "Data integrity" },
   { href: "/#principles", label: "Principles" },
 ];

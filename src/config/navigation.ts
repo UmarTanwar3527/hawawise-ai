@@ -35,23 +35,27 @@ export const primaryNavigation: readonly NavItem[] = [
   {
     href: "/reports",
     label: "Civic reports",
-    description: "Submit and track pollution incidents",
+    description: "Report pollution with a photo; AI classifies it",
     icon: "flag",
   },
   {
     href: "/insights",
     label: "City insights",
-    description: "Trends and hotspots",
+    description: "Trends, station comparison and daily patterns",
     icon: "chart",
   },
 ];
 
+/**
+ * Secondary links. Settings is not listed while sign-in is set aside (its page
+ * is still a labelled placeholder at /settings).
+ */
 export const secondaryNavigation: readonly NavItem[] = [
   {
-    href: "/settings",
-    label: "Settings",
-    description: "Profile, language and preferences",
-    icon: "sliders",
+    href: "/demo",
+    label: "Guided demo",
+    description: "A 3-minute tour on live data, with readiness checks",
+    icon: "sparkle",
   },
 ];
 

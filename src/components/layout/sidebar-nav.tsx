@@ -59,7 +59,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       </div>
       <div>
         <p className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-          Account
+          Guide
         </p>
         <ul className="flex flex-col gap-0.5">{secondaryNavigation.map(renderItem)}</ul>
       </div>

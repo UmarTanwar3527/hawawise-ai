@@ -48,10 +48,14 @@ function loadMessages(): ChatMessage[] {
   }
 }
 
-export function GuardianChat() {
+/**
+ * `initialQuestion` (from a guided-demo link) only pre-fills the input; the
+ * visitor still sends it, so opening a link never spends model quota.
+ */
+export function GuardianChat({ initialQuestion = "" }: { initialQuestion?: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [hydrated, setHydrated] = useState(false);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialQuestion);
   const [pending, setPending] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const inputId = useId();

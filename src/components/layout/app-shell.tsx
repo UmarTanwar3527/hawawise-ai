@@ -2,7 +2,7 @@
 
 import { useRef, type ReactNode } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { siteConfig } from "@/config/site";
 
@@ -91,7 +91,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </p>
 
           <div className="ml-auto flex items-center gap-2">
-            <Badge tone="placeholder">Dev preview</Badge>
+            <ButtonLink href="/demo" variant="secondary" size="sm">
+              <Icon name="sparkle" size={14} />
+              Guided demo
+            </ButtonLink>
           </div>
         </div>
       </header>
