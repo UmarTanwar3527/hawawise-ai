@@ -1,19 +1,32 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useId, useTransition, type FormEvent } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 
 type Area = { slug: string; name: string; type: string };
 
+/**
+ * Area filter. Changing the selection does not navigate by itself (WCAG
+ * 3.2.2); the Show button does. Without JavaScript it submits as a GET form.
+ */
 export function LocationSelector({ areas, value }: { areas: Area[]; value: string }) {
   const router = useRouter();
+  const id = useId();
   const [isPending, startTransition] = useTransition();
 
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const slug = new FormData(event.currentTarget).get("location");
+    if (typeof slug !== "string") return;
+    startTransition(() => router.push(`/dashboard?location=${encodeURIComponent(slug)}`));
+  };
+
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <label htmlFor="location" className="text-sm font-medium text-ink">
+    <form action="/dashboard" method="get" onSubmit={onSubmit} className="flex flex-wrap items-center gap-3">
+      <label htmlFor={id} className="text-sm font-medium text-ink">
         Area
       </label>
       <div className="relative">
@@ -23,13 +36,11 @@ export function LocationSelector({ areas, value }: { areas: Area[]; value: strin
           className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-primary"
         />
         <select
-          id="location"
-          value={value}
-          onChange={(event) => {
-            const slug = event.target.value;
-            startTransition(() => router.push(`/dashboard?location=${encodeURIComponent(slug)}`));
-          }}
-          className="h-10 appearance-none rounded-lg border border-line-strong bg-surface pr-9 pl-9 text-sm font-medium text-ink shadow-sm"
+          key={value}
+          id={id}
+          name="location"
+          defaultValue={value}
+          className="h-10 appearance-none rounded-lg border border-line-control bg-surface pr-9 pl-9 text-sm font-medium text-ink shadow-sm"
         >
           {areas.map((area) => (
             <option key={area.slug} value={area.slug}>
@@ -48,9 +59,12 @@ export function LocationSelector({ areas, value }: { areas: Area[]; value: strin
           <path d="m6 9 6 6 6-6" />
         </svg>
       </div>
+      <Button type="submit" variant="secondary" disabled={isPending}>
+        Show
+      </Button>
       <span role="status" aria-live="polite" className="text-xs text-ink-subtle">
         {isPending ? "Loading area…" : ""}
       </span>
-    </div>
+    </form>
   );
 }

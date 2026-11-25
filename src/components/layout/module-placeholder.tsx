@@ -77,6 +77,8 @@ export function ModulePlaceholder({
 
 type PanelPlaceholderProps = {
   title: string;
+  /** Badge text; defaults to "No data". Use "Development placeholder" for unbuilt features. */
+  badge?: string;
   description: string;
   icon: IconName;
   className?: string;
@@ -88,12 +90,16 @@ export function PanelPlaceholder({
   title,
   description,
   icon,
+  badge = "No data",
   className,
   children,
 }: PanelPlaceholderProps) {
   return (
     <Card className={className}>
-      <CardHeader title={title} action={<Badge tone="neutral">No data</Badge>} />
+      <CardHeader
+        title={title}
+        action={<Badge tone={badge === "No data" ? "neutral" : "placeholder"}>{badge}</Badge>}
+      />
       <EmptyState
         compact
         headingLevel="h3"

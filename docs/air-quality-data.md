@@ -19,8 +19,9 @@ How Hawa AI gets, labels and calculates Jaipur air-quality data. Decisions and o
 /api/cron/ingest  (Bearer CRON_SECRET; the only place providers are called)
   ├─ OpenAQ: discover monitors within 25 km → upsert as monitoring_station locations
   │    for each active station: latest → choose live sensor per pollutant
-  │    → last 26 h of hourly averages → aqi_readings (measured) + pollutant_values
-  │    → CPCB AQI per hour where data allows → aqi_index_values (hawa_calculated)
+  │    → last 30 h of hourly averages → aqi_readings (measured) + pollutant_values
+  │    → CPCB AQI only for hours whose full 24 h window is inside the fetched
+  │      range (never recomputed from a truncated window) → aqi_index_values
   ├─ Open-Meteo: one request for all areas → past 24 h → aqi_readings (modelled)
   │    → future hours → pollution_forecasts (6-hour run blocks)
   ├─ raw responses → provider_payloads (7-day expiry)
@@ -74,9 +75,17 @@ Every calculated value stores its sub-indices, averages, hours used and excluded
 5. **Model vs stations:** for the same hour, Open-Meteo estimated PM2.5 at about 23–25 µg/m³ across Jaipur, while stations measured about 78–122 µg/m³ (roughly 3–5× higher). The modelled values must never be presented as the area's air quality. They are suitable at most for relative trends and must stay labelled "modelled".
 6. **Model resolution:** Open-Meteo snapped the 9 Jaipur areas to 4 grid cells (about 0.1°). Most neighbourhoods share one estimate, so the UI must not imply neighbourhood-level differences from model data.
 
+## Presentation rules (after the Day 1 audit)
+
+- The nearest station **with fresh data** represents an area; a nearer stale station is used only if none is fresh.
+- Age and staleness are computed at response time, not when data was cached.
+- Values reported in ppb/ppm are not shown as numbers until their unit is verified (see observation 4).
+- Forecasts show when they were fetched and are flagged stale after 12 hours. Day comparisons use the first full day as the baseline.
+
 ## Limits and follow-ups
 
-- Verify the 8-hour aggregation and the ppb unit anomaly against CPCB.
+- Verify the 8-hour aggregation and the ppb unit anomaly against CPCB. A search on 2026-11-25 found sources agreeing on 8-hour averaging for CO and O₃, but none confirming whether CPCB uses the trailing 8 hours or the maximum 8-hour average in the last 24 hours.
+- When sub-indices tie, the dominant pollutant is the first in calculation order; consider reporting all tied pollutants.
 - Schedule hourly ingestion after deployment, and alert on `provider_sync_logs` failures.
 - Per-IP rate limiting of the public API is not implemented (CDN caching only). Add it with a shared store if abuse appears.
 - Google Air Quality can be added later as another `ModelledGridProvider` without changing the read API.

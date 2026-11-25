@@ -17,7 +17,7 @@ export default function NotFound() {
         className="w-full max-w-md rounded-card border border-line bg-surface shadow-card"
       >
         <EmptyState
-          headingLevel="h2"
+          headingLevel="h1"
           icon="map"
           title="Page not found"
           description="The page you are looking for does not exist or has moved."

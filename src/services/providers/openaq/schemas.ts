@@ -2,7 +2,8 @@ import { z } from "zod";
 
 /** Response schemas for the parts of OpenAQ v3 that Hawa AI uses. */
 
-const dateTime = z.object({ utc: z.string(), local: z.string().optional() });
+/** UTC timestamps must be valid ISO 8601; an unparseable date would bypass time filters. */
+const dateTime = z.object({ utc: z.iso.datetime({ offset: true }), local: z.string().optional() });
 
 const parameter = z.object({ name: z.string(), units: z.string() });
 

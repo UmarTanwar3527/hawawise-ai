@@ -77,7 +77,7 @@ export function JaipurMap({
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] xl:items-start">
       <div className="flex flex-col gap-3">
         <div ref={ref} className="overflow-hidden rounded-xl border border-line bg-canvas">
-          <svg width={width} height={height} className="block max-w-full" aria-labelledby="map-title map-desc" role="img">
+          <svg width={width} height={height} className="block max-w-full" aria-labelledby="map-title map-desc" role="group">
             <title id="map-title">Schematic map of Jaipur monitoring stations and areas</title>
             <desc id="map-desc">
               {stations.length} monitoring stations coloured by calculated CPCB AQI category, and {areas.length} selectable
@@ -94,18 +94,17 @@ export function JaipurMap({
               const { x, y } = project(area.latitude, area.longitude);
               const selected = area.slug === selectedSlug;
               return (
-                <g
+                <a
                   key={area.slug}
-                  role="link"
-                  tabIndex={0}
+                  href={`/dashboard?location=${encodeURIComponent(area.slug)}`}
                   aria-label={`Show ${area.name}`}
+                  aria-current={selected ? "page" : undefined}
                   className="cursor-pointer outline-none [&:focus-visible>circle]:stroke-primary"
-                  onClick={() => go(area.slug)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      go(area.slug);
-                    }
+                  onClick={(event) => {
+                    // Keep new-tab and modified clicks native; plain clicks navigate client-side.
+                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                    event.preventDefault();
+                    go(area.slug);
                   }}
                 >
                   <title>{area.name}</title>
@@ -131,7 +130,7 @@ export function JaipurMap({
                       {area.name}
                     </text>
                   ) : null}
-                </g>
+                </a>
               );
             })}
 

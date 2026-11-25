@@ -10,7 +10,7 @@ type StateProps = {
   icon?: IconName;
   /** Optional actions such as a retry button or a navigation link. */
   children?: ReactNode;
-  headingLevel?: "h2" | "h3";
+  headingLevel?: "h1" | "h2" | "h3";
   /** Compact variant for use inside dashboard panels. */
   compact?: boolean;
   className?: string;

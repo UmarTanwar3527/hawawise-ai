@@ -20,13 +20,16 @@ select * from no_plan();
 insert into auth.users (id, email, aud, role, raw_user_meta_data)
 values
   ('11111111-1111-4111-8111-111111111111', 'rls-user-a@hawa.test', 'authenticated', 'authenticated', '{"full_name": "User A"}'),
-  ('22222222-2222-4222-8222-222222222222', 'rls-user-b@hawa.test', 'authenticated', 'authenticated', '{}');
+  ('22222222-2222-4222-8222-222222222222', 'rls-user-b@hawa.test', 'authenticated', 'authenticated', '{"avatar_url": "javascript:alert(1)"}');
 
 insert into data_sources (id, provider, source_type, display_name)
 values ('aaaaaaaa-0000-4000-8000-000000000001', 'rls_test_provider', 'modelled_grid', 'RLS test provider');
 
 insert into locations (id, slug, name, latitude, longitude, location_type, coordinate_source)
 values ('aaaaaaaa-0000-4000-8000-000000000002', 'rls-test-area', 'RLS test area', 26.9, 75.8, 'neighbourhood', 'test fixture');
+
+insert into locations (slug, name, latitude, longitude, location_type, coordinate_source, is_active)
+values ('rls-inactive-area', 'Inactive area', 26.8, 75.7, 'neighbourhood', 'test fixture', false);
 
 insert into provider_payloads (id, source_id, endpoint, payload)
 values ('aaaaaaaa-0000-4000-8000-000000000003', 'aaaaaaaa-0000-4000-8000-000000000001', 'test', '{}');
@@ -171,6 +174,40 @@ select ok(
   'report-media bucket is private'
 );
 
+select is(
+  (select avatar_url from user_profiles where id = '22222222-2222-4222-8222-222222222222'),
+  null,
+  'signup drops non-https avatar URLs'
+);
+
+select throws_ok(
+  $$update user_profiles set avatar_url = 'http://example.com/a.png' where id = '11111111-1111-4111-8111-111111111111'$$,
+  '23514', null,
+  'avatar URLs must be https'
+);
+
+select is(
+  (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind in ('v', 'm')
+     and not coalesce('security_invoker=true' = any (c.reloptions), false)),
+  0,
+  'no public view bypasses RLS (all views use security_invoker)'
+);
+
+select ok(
+  not has_function_privilege('authenticated', 'private.handle_new_user()', 'execute')
+  and not has_function_privilege('anon', 'private.enforce_user_quota()', 'execute'),
+  'internal helper functions are not executable by client roles'
+);
+
+create table public.rls_default_privilege_probe (id int);
+select ok(
+  not has_table_privilege('anon', 'public.rls_default_privilege_probe', 'select')
+  and not has_table_privilege('authenticated', 'public.rls_default_privilege_probe', 'select'),
+  'new public tables are not granted to anon/authenticated by default'
+);
+drop table public.rls_default_privilege_probe;
+
 ------------------------------------------------------------------------------
 -- Anonymous visitor
 ------------------------------------------------------------------------------
@@ -195,6 +232,8 @@ select throws_ok($$select 1 from ai_messages$$, '42501', null,
   'anon cannot read AI messages');
 select throws_ok($$select 1 from provider_sync_logs$$, '42501', null,
   'anon cannot read provider sync logs');
+select is_empty($$select 1 from locations where slug = 'rls-inactive-area'$$,
+  'anon cannot see inactive locations');
 select throws_ok(
   $$insert into locations (slug, name, latitude, longitude, location_type, coordinate_source)
     values ('anon-area', 'x', 1, 1, 'neighbourhood', 'x')$$,
@@ -275,6 +314,35 @@ select throws_ok(
     values ('report-media', '11111111-1111-4111-8111-111111111111/aaaaaaaa-0000-4000-8000-000000000005/evil.jpg')$$,
   '42501', null,
   'B cannot upload into A''s storage folder');
+select throws_ok(
+  $$insert into storage.objects (bucket_id, name)
+    values ('report-media', '22222222-2222-4222-8222-222222222222/aaaaaaaa-0000-4000-8000-000000000005/x.jpg')$$,
+  '42501', null,
+  'B cannot upload into their own folder using A''s report id');
+select lives_ok($$update ai_conversations set title = 'hijacked'$$,
+  'an update aimed at A''s conversation matches no visible rows');
+select lives_ok($$update user_alerts set read_at = now()$$,
+  'an update aimed at A''s alert matches no visible rows');
+select lives_ok($$update user_profiles set full_name = 'hijacked' where id = '11111111-1111-4111-8111-111111111111'$$,
+  'an update aimed at A''s profile matches no visible rows');
+select throws_ok($$update civic_reports set ai_classification = '{}'$$, '42501', null,
+  'users cannot set AI classifications');
+select throws_ok($$update ai_messages set content = 'edited'$$, '42501', null,
+  'users cannot edit messages');
+select throws_ok($$delete from ai_messages$$, '42501', null,
+  'users cannot delete individual messages');
+select throws_ok($$insert into ai_evidence (message_id, source_name) values ('aaaaaaaa-0000-4000-8000-000000000007', 'x')$$,
+  '42501', null, 'users cannot write AI evidence');
+select throws_ok($$insert into user_alerts (user_id, type, message) values ('22222222-2222-4222-8222-222222222222', 'system', 'x')$$,
+  '42501', null, 'users cannot create alerts');
+select throws_ok($$update aqi_index_values set aqi_value = 1$$, '42501', null,
+  'users cannot change AQI values');
+select throws_ok($$insert into pollutant_values (reading_id, pollutant, value, unit) values ('aaaaaaaa-0000-4000-8000-000000000004', 'pm10', 1, 'ug_m3')$$,
+  '42501', null, 'users cannot write pollutant values');
+select throws_ok($$delete from pollution_forecasts$$, '42501', null,
+  'users cannot delete forecasts');
+select throws_ok($$update data_sources set is_active = false$$, '42501', null,
+  'users cannot change data sources');
 
 reset role;
 
@@ -332,6 +400,28 @@ select is(
   (select description from civic_reports where id = 'aaaaaaaa-0000-4000-8000-000000000005'),
   'Edited by A',
   'reports under review cannot be edited by their author');
+
+-- Media cannot be attached to a report under review.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "11111111-1111-4111-8111-111111111111", "role": "authenticated"}', true);
+select set_config('request.jwt.claim.sub', '11111111-1111-4111-8111-111111111111', true);
+select throws_ok(
+  $$insert into report_media (report_id, storage_path, mime_type, size_bytes)
+    values ('aaaaaaaa-0000-4000-8000-000000000005',
+            '11111111-1111-4111-8111-111111111111/aaaaaaaa-0000-4000-8000-000000000005/late.jpg', 'image/jpeg', 10)$$,
+  '42501', null,
+  'media cannot be attached once a report is under review');
+
+-- Per-user quota: the 21st report within 24 hours is refused.
+select lives_ok(
+  $$insert into civic_reports (category) select 'other' from generate_series(1, 19)$$,
+  'a user can file up to 20 reports a day');
+select throws_ok(
+  $$insert into civic_reports (category) values ('other')$$,
+  'P0429', null,
+  'the 21st report within 24 hours is refused');
+reset role;
 
 select * from finish();
 

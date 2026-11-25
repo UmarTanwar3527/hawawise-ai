@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import { getCpcbAqiCategory } from "./cpcb-aqi-scale";
 import type { CpcbAqiCategoryId, PollutantCode, PollutantUnit } from "./types/aqi";
 
@@ -223,3 +225,27 @@ export function calculateCpcbAqi(
     ...base,
   };
 }
+
+const cpcbPollutantSchema = z.enum(["pm10", "pm25", "no2", "so2", "co", "o3", "nh3"]);
+
+/** Shape of aqi_index_values.calculation_details, validated when read back. */
+export const calculationDetailsSchema = z.object({
+  subIndices: z.array(
+    z.object({
+      pollutant: cpcbPollutantSchema,
+      average: z.number(),
+      unit: z.enum(["ug_m3", "mg_m3"]),
+      hoursUsed: z.number(),
+      averagingHours: z.union([z.literal(24), z.literal(8)]),
+      subIndex: z.number(),
+      isLowerBound: z.boolean(),
+    }),
+  ),
+  excluded: z.array(
+    z.object({
+      pollutant: cpcbPollutantSchema,
+      reason: z.enum(["no_data", "insufficient_hours", "unit_not_supported"]),
+      detail: z.string().optional(),
+    }),
+  ),
+});

@@ -20,8 +20,13 @@ import type {
 type Db = SupabaseClient<Database>;
 
 const HOUR = 3_600_000;
-/** Station history fetched per run: enough for a 24 h average plus slack. */
-const STATION_WINDOW_HOURS = 26;
+/**
+ * Station history fetched per run. The AQI is only calculated for hours whose
+ * full 24 h window lies inside this range (see hoursWithCompleteWindow), so
+ * stored values are never recomputed from a truncated window.
+ */
+const STATION_WINDOW_HOURS = 30;
+const AQI_WINDOW_HOURS = 24;
 /** A station with no data for this long is stored but marked inactive. */
 const STATION_INACTIVE_AFTER_HOURS = 7 * 24;
 /** Forecast runs are grouped into 6-hour blocks to bound storage. */
@@ -56,12 +61,23 @@ function chunk<T>(items: T[], size = CHUNK): T[][] {
   return out;
 }
 
+/** Safe, non-sensitive error description: provider errors or a database error code. */
 function describeError(error: unknown): string {
   if (error instanceof ProviderError) return error.message;
-  if (error && typeof error === "object" && "message" in error) {
-    return String((error as { message: unknown }).message).slice(0, 200);
+  if (error && typeof error === "object" && "code" in error && typeof error.code === "string") {
+    return `database error ${error.code}`;
   }
-  return "unknown error";
+  return "internal error";
+}
+
+/**
+ * Hours whose AQI averaging window (24 h) is fully covered by the fetched
+ * range. Recomputing older hours from a shorter slice would overwrite good
+ * values with averages built from fewer hours.
+ */
+export function hoursWithCompleteWindow(observations: HourlyObservation[], windowFrom: Date): HourlyObservation[] {
+  const earliestAsOf = windowFrom.getTime() + AQI_WINDOW_HOURS * HOUR;
+  return observations.filter((observation) => observation.observedAt.getTime() >= earliestAsOf);
 }
 
 async function getSourceIds(db: Db) {
@@ -274,7 +290,7 @@ async function ingestStations(
         })),
       );
 
-      const aqiRows = series.observations.flatMap((observation) => {
+      const aqiRows = hoursWithCompleteWindow(series.observations, window.from).flatMap((observation) => {
         const result = calculateCpcbAqi(concentrations, observation.observedAt);
         const readingId = idsByTime.get(observation.observedAt.getTime());
         if (!result.ok || !readingId) return [];
@@ -422,8 +438,13 @@ async function ingestModel(deps: IngestionDeps, sourceId: string): Promise<Provi
 
 async function applyRetention(db: Db, now: Date) {
   const forecastCutoff = new Date(now.getTime() - FORECAST_RETENTION_DAYS * 24 * HOUR);
-  await db.from("pollution_forecasts").delete().lt("issued_at", forecastCutoff.toISOString());
-  await db.from("provider_payloads").delete().lt("expires_at", now.toISOString());
+  const results = await Promise.all([
+    db.from("pollution_forecasts").delete().lt("issued_at", forecastCutoff.toISOString()),
+    db.from("provider_payloads").delete().lt("expires_at", now.toISOString()),
+  ]);
+  for (const { error } of results) {
+    if (error) console.error("retention delete failed", describeError(error));
+  }
 }
 
 /**
@@ -433,29 +454,25 @@ async function applyRetention(db: Db, now: Date) {
 export async function runAirQualityIngestion(deps: IngestionDeps): Promise<IngestionSummary> {
   const now = deps.now?.() ?? new Date();
   const sources = await getSourceIds(deps.db);
-  const providers: ProviderRunSummary[] = [];
-
   const runs = [
     { sourceId: sources.openaq, provider: "openaq", run: () => ingestStations(deps, sources.openaq, now) },
     { sourceId: sources.openMeteo, provider: "open_meteo", run: () => ingestModel(deps, sources.openMeteo) },
   ] as const;
 
-  for (const { sourceId, provider, run } of runs) {
-    const logId = await startLog(deps.db, sourceId);
-    let summary: ProviderRunSummary;
-    try {
-      summary = await run();
-    } catch (error) {
-      summary = {
-        provider,
-        status: "failed",
-        recordsWritten: 0,
-        notes: [describeError(error)],
-      };
-    }
-    await finishLog(deps.db, logId, summary);
-    providers.push(summary);
-  }
+  // Providers run in parallel so a slow one cannot starve the other.
+  const providers = await Promise.all(
+    runs.map(async ({ sourceId, provider, run }): Promise<ProviderRunSummary> => {
+      const logId = await startLog(deps.db, sourceId);
+      let summary: ProviderRunSummary;
+      try {
+        summary = await run();
+      } catch (error) {
+        summary = { provider, status: "failed", recordsWritten: 0, notes: [describeError(error)] };
+      }
+      await finishLog(deps.db, logId, summary);
+      return summary;
+    }),
+  );
 
   await applyRetention(deps.db, now);
 

@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { EmptyState } from "@/components/ui/states";
@@ -53,12 +54,15 @@ export function ModelledCard({
               );
             })}
           </ul>
-          <p className="text-xs text-ink-subtle">Model hour: {formatTimeIst(modelled.observedAt)}</p>
+          <p className="flex flex-wrap items-center gap-2 text-xs text-ink-subtle">
+            Model hour: {formatTimeIst(modelled.observedAt)}
+            {modelled.isStale ? <Badge tone="warning">Stale</Badge> : null}
+          </p>
           <div className="flex gap-2 rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-xs leading-5 text-yellow-900">
             <Icon name="alert" size={14} className="mt-0.5 shrink-0" />
             <p>
               {ratio !== null && ratio >= 1.5
-                ? `The station is reading ${ratio.toFixed(1)}× the model's PM2.5 right now. `
+                ? `The station's latest hour reads ${ratio.toFixed(1)}× the model's latest PM2.5 estimate. `
                 : ""}
               This model has read far below Jaipur&apos;s monitoring stations and covers about a 10 km
               grid cell, so nearby areas share one estimate. Use it for trends, not as the

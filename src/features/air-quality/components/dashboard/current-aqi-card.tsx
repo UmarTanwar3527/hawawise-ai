@@ -5,32 +5,18 @@ import { EmptyState } from "@/components/ui/states";
 import { cn } from "@/lib/utils/cn";
 import { formatAge, formatConcentration, formatTimeIst } from "@/lib/utils/format";
 
+import { NEAREST_STATION_MAX_KM } from "../../constants";
+import { calculationDetailsSchema } from "../../cpcb-aqi-calculator";
 import { CPCB_AQI_CATEGORIES } from "../../cpcb-aqi-scale";
 import type { AreaAirQuality } from "../../services/area-air-quality";
 import { POLLUTANT_LABELS, UNIT_LABELS, type PollutantCode } from "../../types/aqi";
 import { ProvenanceBadge } from "../provenance-badge";
-
-type SubIndexDetail = {
-  pollutant: PollutantCode;
-  average: number;
-  unit: "ug_m3" | "mg_m3";
-  hoursUsed: number;
-  averagingHours: number;
-  subIndex: number;
-  isLowerBound: boolean;
-};
-type ExcludedDetail = { pollutant: PollutantCode; reason: string; detail?: string };
 
 const EXCLUSION_REASONS: Record<string, string> = {
   unit_not_supported: "reported in ppb/ppm; not converted",
   insufficient_hours: "not enough hours of data",
   no_data: "not reported by this station",
 };
-
-function readDetails(details: unknown): { subIndices: SubIndexDetail[]; excluded: ExcludedDetail[] } {
-  const value = (details ?? {}) as { subIndices?: SubIndexDetail[]; excluded?: ExcludedDetail[] };
-  return { subIndices: value.subIndices ?? [], excluded: value.excluded ?? [] };
-}
 
 export function CurrentAqiCard({
   measured,
@@ -60,7 +46,7 @@ export function CurrentAqiCard({
           description={
             measured
               ? "The nearest station did not report enough pollutants or hours of data to calculate the CPCB AQI. Its pollutant readings are shown below."
-              : `No monitoring station with recent data is within 10 km of ${areaName}.`
+              : `No monitoring station with data from the last 48 hours is within ${NEAREST_STATION_MAX_KM} km of ${areaName}.`
           }
         />
       ) : (
@@ -71,9 +57,12 @@ export function CurrentAqiCard({
                 {aqi.value}
               </span>
               {aqi.isLowerBound ? (
-                <span className="text-3xl font-semibold text-ink" aria-label="or higher">
-                  +
-                </span>
+                <>
+                  <span aria-hidden="true" className="text-3xl font-semibold text-ink">
+                    +
+                  </span>
+                  <span className="sr-only">or higher</span>
+                </>
               ) : null}
             </p>
             <div className="flex flex-col gap-1.5 pb-1">
@@ -143,8 +132,9 @@ export function CurrentAqiCard({
 }
 
 function CalculationDetails({ details }: { details: unknown }) {
-  const { subIndices, excluded } = readDetails(details);
-  if (subIndices.length === 0) return null;
+  const parsed = calculationDetailsSchema.safeParse(details);
+  if (!parsed.success || parsed.data.subIndices.length === 0) return null;
+  const { subIndices, excluded } = parsed.data;
   return (
     <details className="group rounded-xl border border-line">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink">

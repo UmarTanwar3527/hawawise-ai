@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { PanelPlaceholder } from "@/components/layout/module-placeholder";
@@ -25,7 +26,10 @@ import {
   getKnownAreaSlugs,
   type DashboardData,
 } from "@/features/air-quality/services/dashboard-data";
-import type { CpcbAqiCategoryId } from "@/features/air-quality/types/aqi";
+import {
+  withCurrentForecastFreshness,
+  withCurrentFreshness,
+} from "@/features/air-quality/services/area-air-quality";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const metadata: Metadata = {
@@ -80,7 +84,13 @@ async function DashboardContent({ searchParams }: { searchParams: PageProps<"/da
     return <DataUnavailable slug={slug} />;
   }
 
-  const { areas, current, forecast, stations, history, generatedAt } = data;
+  // Age and staleness are computed per request, not when the data was cached.
+  await connection();
+  const now = new Date();
+  const generatedAt = now.toISOString();
+  const { areas, stations, history } = data;
+  const current = withCurrentFreshness(data.current, now);
+  const forecast = withCurrentForecastFreshness(data.forecast, now);
   const measured = current.measured;
 
   return (
@@ -110,7 +120,7 @@ async function DashboardContent({ searchParams }: { searchParams: PageProps<"/da
           <CurrentAqiCard measured={measured} areaName={current.location.name} />
           {measured?.aqi?.category ? (
             <Card className="p-5">
-              <AqiScaleLegend activeCategory={measured.aqi.category as CpcbAqiCategoryId} />
+              <AqiScaleLegend activeCategory={measured.aqi.category} />
             </Card>
           ) : null}
         </div>
@@ -120,6 +130,7 @@ async function DashboardContent({ searchParams }: { searchParams: PageProps<"/da
           className="lg:col-span-2"
           pollutants={measured?.pollutants ?? null}
           stationName={measured?.station.name ?? null}
+          observedAt={measured?.observedAt ?? null}
         />
         <ModelledCard current={current} />
 
@@ -139,6 +150,7 @@ async function DashboardContent({ searchParams }: { searchParams: PageProps<"/da
         </Card>
         <PanelPlaceholder
           title="AI daily summary"
+          badge="Development placeholder"
           icon="sparkle"
           description="Air Guardian is not connected yet. The summary will be generated only from the data on this page, with sources and times."
         />

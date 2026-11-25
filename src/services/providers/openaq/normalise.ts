@@ -135,7 +135,9 @@ export function mergeHourlySeries(
         skipped.push({ pollutant: sensor.pollutant, reason: "negative_value", detail: end.toISOString() });
         continue;
       }
-      const coverage = result.coverage?.percentComplete ?? null;
+      const rawCoverage = result.coverage?.percentComplete ?? null;
+      // Clamp to the stored range; a provider value above 100% would otherwise fail the write.
+      const coverage = rawCoverage === null ? null : Math.min(Math.max(rawCoverage, 0), 100);
       if (coverage !== null && coverage < MIN_HOURLY_COVERAGE_PERCENT) {
         skipped.push({ pollutant: sensor.pollutant, reason: "incomplete_hour", detail: end.toISOString() });
         continue;

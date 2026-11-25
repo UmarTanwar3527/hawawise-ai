@@ -64,9 +64,13 @@ RLS is enabled on every table. Grants start from zero for `anon` and `authentica
 
 Written only by the server (service role): environmental data, raw payloads, assistant and system messages, evidence, alerts, report status and AI classifications.
 
+## Abuse limits
+
+Signed-in users can write some rows directly through the Data API, so per-user quotas are enforced in the database (migration 007): 20 civic reports, 50 conversations and 200 user messages per 24 hours, and 5 media rows and 5 stored images per report. Exceeding a quota raises SQLSTATE `P0429`. Storage deletes are only allowed while the report is still `submitted`.
+
 ## Adding a table
 
-Supabase's default privileges grant new `public` tables to `anon` and `authenticated`. Every migration that adds a table must:
+Since migration 007, new tables, sequences and functions in `public` are **not** granted to `anon` or `authenticated` by default, and functions in `private` are not executable by client roles. Every migration that adds a table must:
 
 1. `alter table … enable row level security;`
 2. `revoke all on … from anon, authenticated;`, then grant only the operations and columns needed.
@@ -81,5 +85,6 @@ Supabase's default privileges grant new `public` tables to `anon` and `authentic
 
 - **Retention:** schedule deletion of expired `provider_payloads` (for example with `pg_cron`) and define a retention period for AI conversations.
 - **Storage cleanup:** deleting a report removes its `report_media` rows but not the stored files. Add a cleanup job.
+- **Storage deletes are not covered by pgTAP:** Supabase blocks direct SQL deletes on storage tables, so the delete policy is verified by review only. Test it through the Storage API.
 - **Moderation:** report review roles and workflow (status changes currently need the service role).
 - **Later tables:** `provider_sync_logs`, `ai_tool_calls`, knowledge tables with embeddings, `audit_logs`.

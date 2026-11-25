@@ -21,7 +21,25 @@ if [[ -z "${SUPABASE_DB_URL:-}" ]]; then
   exit 1
 fi
 
-PSQL=(psql "$SUPABASE_DB_URL" -X -q -v ON_ERROR_STOP=1 --no-psqlrc)
+# psql reads the connection from PG* environment variables so the password
+# never appears in process arguments. (The Supabase CLI only accepts the URL
+# as an argument; run it on a machine you do not share.)
+eval "$(HAWA_DB_URL="$SUPABASE_DB_URL" python3 - <<'PY'
+import os, shlex, urllib.parse
+u = urllib.parse.urlsplit(os.environ["HAWA_DB_URL"])
+values = {
+    "PGHOST": u.hostname or "",
+    "PGPORT": str(u.port or 5432),
+    "PGUSER": urllib.parse.unquote(u.username or ""),
+    "PGPASSWORD": urllib.parse.unquote(u.password or ""),
+    "PGDATABASE": (u.path or "/postgres").lstrip("/") or "postgres",
+    "PGSSLMODE": "require",
+}
+print("\n".join(f"export {k}={shlex.quote(v)}" for k, v in values.items()))
+PY
+)"
+
+PSQL=(psql -X -q -v ON_ERROR_STOP=1 --no-psqlrc)
 
 # pgTAP prints "not ok" for failures; finish() reports a plan/failure summary.
 run_tap() {

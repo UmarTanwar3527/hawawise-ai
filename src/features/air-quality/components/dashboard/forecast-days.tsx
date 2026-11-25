@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { EmptyState } from "@/components/ui/states";
@@ -12,6 +13,9 @@ type DaySummary = { key: string; iso: string; hours: number; pm25: number | null
 function mean(values: number[]): number | null {
   return values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
 }
+
+/** A day needs this many forecast hours to serve as the comparison baseline. */
+export const FULL_DAY_MIN_HOURS = 20;
 
 /** Groups hourly forecast values into IST calendar days (first four). */
 export function summariseByDay(forecast: AreaForecast): DaySummary[] {
@@ -46,19 +50,30 @@ export function ForecastDays({
   className?: string;
 }) {
   const days = summariseByDay(forecast);
-  const baseline = days[0]?.pm25 ?? null;
+  // Compare against the first full day; a partial day (e.g. the rest of today)
+  // covers only some hours of the daily cycle and would skew the comparison.
+  const baselineDay = days.find((day) => day.hours >= FULL_DAY_MIN_HOURS && day.pm25 !== null) ?? null;
+  const baseline = baselineDay?.pm25 ?? null;
   const todayKey = istDayKey(generatedAt);
+  const dayName = (day: DaySummary) => (day.key === todayKey ? "Today" : formatWeekdayIst(day.iso));
 
   return (
     <Card className={className}>
       <CardHeader
         title="Four-day outlook"
         description={
-          forecast.issuedAt
-            ? `Open-Meteo model run stored ${formatDateTimeIst(forecast.issuedAt)}`
+          forecast.fetchedAt
+            ? `Open-Meteo model, fetched ${formatDateTimeIst(forecast.fetchedAt)}`
             : "Open-Meteo model"
         }
-        action={days.length ? <ProvenanceBadge kind="forecast" /> : null}
+        action={
+          days.length ? (
+            <span className="flex items-center gap-2">
+              {forecast.isStale ? <Badge tone="warning">Stale</Badge> : null}
+              <ProvenanceBadge kind="forecast" />
+            </span>
+          ) : null
+        }
       />
       {days.length === 0 ? (
         <EmptyState
@@ -71,15 +86,17 @@ export function ForecastDays({
       ) : (
         <div className="flex flex-col gap-4 p-5">
           <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {days.map((day, index) => {
+            {days.map((day) => {
+              const isBaseline = day.key === baselineDay?.key;
+              const isPartial = day.hours < FULL_DAY_MIN_HOURS;
               const change =
-                index > 0 && baseline && day.pm25 !== null ? ((day.pm25 - baseline) / baseline) * 100 : null;
+                !isBaseline && !isPartial && baseline && day.pm25 !== null
+                  ? ((day.pm25 - baseline) / baseline) * 100
+                  : null;
               const direction = change === null || Math.abs(change) < 10 ? "flat" : change > 0 ? "up" : "down";
               return (
                 <li key={day.key} className="rounded-xl border border-line p-3.5">
-                  <p className="text-xs font-semibold text-ink">
-                    {day.key === todayKey ? "Today" : formatWeekdayIst(day.iso)}
-                  </p>
+                  <p className="text-xs font-semibold text-ink">{dayName(day)}</p>
                   <p className="mt-2 text-xs text-ink-subtle">PM2.5 (modelled)</p>
                   <p className="text-xl font-semibold text-ink">
                     {day.pm25 !== null ? formatConcentration(day.pm25) : "—"}
@@ -91,18 +108,21 @@ export function ForecastDays({
                       direction === "up" ? "text-orange-800" : direction === "down" ? "text-green-800" : "text-ink-subtle",
                     )}
                   >
-                    {index === 0 ? (
-                      "Baseline"
+                    {isBaseline ? (
+                      "Comparison baseline"
+                    ) : isPartial || !baselineDay ? (
+                      "Partial day, not compared"
                     ) : direction === "flat" ? (
-                      "Similar to today"
+                      `Similar to ${dayName(baselineDay)}`
                     ) : (
                       <>
                         <Icon name="chart" size={12} className={direction === "down" ? "-scale-y-100" : ""} />
-                        {Math.round(Math.abs(change ?? 0))}% {direction === "up" ? "higher" : "lower"} than today
+                        {Math.round(Math.abs(change ?? 0))}% {direction === "up" ? "higher" : "lower"} than{" "}
+                        {dayName(baselineDay)}
                       </>
                     )}
                   </p>
-                  {day.hours < 20 ? (
+                  {isPartial ? (
                     <p className="mt-1 text-[11px] text-ink-subtle">Based on {day.hours} hours</p>
                   ) : null}
                 </li>

@@ -16,26 +16,21 @@ import type {
   CpcbAqiCategoryId,
   PollutantCode,
   PollutantUnit,
+  PollutantValue,
 } from "../types/aqi";
 
 type Db = SupabaseClient<Database>;
 
 const HOUR = 3_600_000;
 
-
-export type PollutantReading = {
-  pollutant: PollutantCode;
-  value: number;
-  unit: PollutantUnit;
-  averagingPeriod: string | null;
-  coveragePercent: number | null;
-};
+/** A pollutant value as stored (same shape as the provider-normalised value). */
+export type PollutantReading = PollutantValue;
 
 export type AqiReading = {
   scale: AqiScaleCode;
   value: number;
   isLowerBound: boolean;
-  category: CpcbAqiCategoryId | string | null;
+  category: CpcbAqiCategoryId | null;
   dominantPollutant: string | null;
   origin: AqiValueOrigin;
   calculationMethod: string | null;
@@ -87,10 +82,17 @@ export type AreaForecast = {
   location: { slug: string; name: string };
   provenance: "forecast";
   provider: "Open-Meteo";
+  /** Start of the 6-hour block this run is grouped under (not the model run time). */
   issuedAt: string | null;
+  /** When Hawa AI fetched this forecast run. */
+  fetchedAt: string | null;
+  isStale: boolean;
   hours: { forecastFor: string; pollutants: PollutantReading[] }[];
   unavailable: string[];
 };
+
+/** A forecast older than this (since fetch) is flagged stale. */
+export const FORECAST_STALE_AFTER_HOURS = 12;
 
 export class LocationNotFoundError extends Error {
   constructor(slug: string) {
@@ -116,6 +118,51 @@ export function haversineKm(
 function freshness(observedAt: string, fetchedAt: string, staleAfterHours: number, now: Date): Freshness {
   const ageMinutes = Math.max(0, Math.round((now.getTime() - Date.parse(observedAt)) / 60_000));
   return { observedAt, fetchedAt, ageMinutes, isStale: ageMinutes > staleAfterHours * 60 };
+}
+
+/**
+ * Recomputes age and staleness at response time. Cached results carry the
+ * age from when they were cached, which understates it.
+ */
+export function withCurrentFreshness(current: AreaAirQuality, now: Date): AreaAirQuality {
+  return {
+    ...current,
+    measured: current.measured
+      ? {
+          ...current.measured,
+          ...freshness(current.measured.observedAt, current.measured.fetchedAt, MEASURED_STALE_AFTER_HOURS, now),
+        }
+      : null,
+    modelled: current.modelled
+      ? {
+          ...current.modelled,
+          ...freshness(current.modelled.observedAt, current.modelled.fetchedAt, MODELLED_STALE_AFTER_HOURS, now),
+        }
+      : null,
+  };
+}
+
+export function withCurrentForecastFreshness(forecast: AreaForecast, now: Date): AreaForecast {
+  return {
+    ...forecast,
+    isStale:
+      forecast.fetchedAt !== null &&
+      now.getTime() - Date.parse(forecast.fetchedAt) > FORECAST_STALE_AFTER_HOURS * HOUR,
+    hours: forecast.hours.filter((hour) => Date.parse(hour.forecastFor) > now.getTime()),
+  };
+}
+
+const CPCB_CATEGORY_IDS: readonly string[] = [
+  "good",
+  "satisfactory",
+  "moderate",
+  "poor",
+  "very_poor",
+  "severe",
+];
+
+export function isCpcbCategory(value: string | null): value is CpcbAqiCategoryId {
+  return value !== null && CPCB_CATEGORY_IDS.includes(value);
 }
 
 type PollutantRow = {
@@ -149,9 +196,31 @@ async function getLocation(db: Db, slug: string) {
   return data;
 }
 
+/** Data source id, or null if the source is missing or inactive. Query failures throw. */
 async function getSourceId(db: Db, provider: string): Promise<string | null> {
-  const { data } = await db.from("data_sources").select("id").eq("provider", provider).maybeSingle();
+  const { data, error } = await db.from("data_sources").select("id").eq("provider", provider).maybeSingle();
+  if (error) throw error;
   return data?.id ?? null;
+}
+
+export type StationCandidate = { stationId: string; distanceKm: number; observedAt: string | null };
+
+/**
+ * Picks the station to represent an area: the nearest one with a fresh
+ * reading; if none is fresh, the nearest one with any reading (shown as stale).
+ */
+export function chooseStation(
+  candidates: StationCandidate[],
+  now: Date,
+  staleAfterHours = MEASURED_STALE_AFTER_HOURS,
+): StationCandidate | null {
+  const withData = candidates
+    .filter((candidate) => candidate.observedAt !== null)
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+  const fresh = withData.find(
+    (candidate) => now.getTime() - Date.parse(candidate.observedAt as string) <= staleAfterHours * HOUR,
+  );
+  return fresh ?? withData[0] ?? null;
 }
 
 export async function getAreaAirQuality(
@@ -159,46 +228,77 @@ export async function getAreaAirQuality(
   slug: string,
   now: Date = new Date(),
 ): Promise<AreaAirQuality> {
-  const location = await getLocation(db, slug);
-  const unavailable: string[] = [];
-  const [openaqId, openMeteoId] = await Promise.all([
+  const [location, openaqId, openMeteoId, stationsResult] = await Promise.all([
+    getLocation(db, slug),
     getSourceId(db, "openaq"),
     getSourceId(db, "open_meteo"),
+    db.from("locations").select("id, name, latitude, longitude, metadata").eq("location_type", "monitoring_station"),
   ]);
+  if (stationsResult.error) throw stationsResult.error;
+  const unavailable: string[] = [];
 
-  // Measured: nearest active station that has data.
-  let measured: AreaAirQuality["measured"] = null;
-  const { data: stations, error: stationError } = await db
-    .from("locations")
-    .select("id, name, latitude, longitude, metadata")
-    .eq("location_type", "monitoring_station");
-  if (stationError) throw stationError;
-
-  const nearby = stations
+  const nearby = stationsResult.data
     .map((station) => ({ station, distanceKm: haversineKm(location, station) }))
-    .filter(({ distanceKm }) => distanceKm <= NEAREST_STATION_MAX_KM)
-    .sort((a, b) => a.distanceKm - b.distanceKm);
+    .filter(({ distanceKm }) => distanceKm <= NEAREST_STATION_MAX_KM);
 
-  if (!openaqId || nearby.length === 0) {
+  const readingColumns = `id, location_id, observed_at, fetched_at,
+    pollutant_values!inner (${POLLUTANT_COLUMNS}),
+    aqi_index_values (aqi_scale, aqi_value, is_lower_bound, aqi_category, dominant_pollutant, value_origin, calculation_method, calculation_details)`;
+
+  // Latest readings for all nearby stations in one query (last 48 h). The
+  // inner join skips any reading stored without pollutant values.
+  const [stationReadings, modelledReading] = await Promise.all([
+    openaqId && nearby.length
+      ? db
+          .from("aqi_readings")
+          .select(readingColumns)
+          .eq("source_id", openaqId)
+          .eq("data_kind", "measured")
+          .in("location_id", nearby.map(({ station }) => station.id))
+          .gte("observed_at", new Date(now.getTime() - 48 * HOUR).toISOString())
+          .order("observed_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    openMeteoId
+      ? db
+          .from("aqi_readings")
+          .select(`observed_at, fetched_at, pollutant_values!inner (${POLLUTANT_COLUMNS})`)
+          .eq("location_id", location.id)
+          .eq("source_id", openMeteoId)
+          .eq("data_kind", "modelled")
+          .lte("observed_at", now.toISOString())
+          .order("observed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  if (stationReadings.error) throw stationReadings.error;
+  if (modelledReading.error) throw modelledReading.error;
+
+  const latestByStation = new Map<string, NonNullable<typeof stationReadings.data>[number]>();
+  for (const reading of stationReadings.data ?? []) {
+    if (!latestByStation.has(reading.location_id)) latestByStation.set(reading.location_id, reading);
+  }
+
+  let measured: AreaAirQuality["measured"] = null;
+  if (!openaqId) {
+    unavailable.push("The station data source is not available.");
+  } else if (nearby.length === 0) {
     unavailable.push(`No monitoring station within ${NEAREST_STATION_MAX_KM} km of this area.`);
   } else {
-    for (const { station, distanceKm } of nearby) {
-      const { data: reading, error } = await db
-        .from("aqi_readings")
-        .select(
-          `observed_at, fetched_at,
-           pollutant_values (${POLLUTANT_COLUMNS}),
-           aqi_index_values (aqi_scale, aqi_value, is_lower_bound, aqi_category, dominant_pollutant, value_origin, calculation_method, calculation_details)`,
-        )
-        .eq("location_id", station.id)
-        .eq("source_id", openaqId)
-        .eq("data_kind", "measured")
-        .order("observed_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      if (!reading) continue;
+    const chosen = chooseStation(
+      nearby.map(({ station, distanceKm }) => ({
+        stationId: station.id,
+        distanceKm,
+        observedAt: latestByStation.get(station.id)?.observed_at ?? null,
+      })),
+      now,
+    );
+    const reading = chosen ? latestByStation.get(chosen.stationId) : undefined;
+    const station = nearby.find(({ station: s }) => s.id === chosen?.stationId)?.station;
 
+    if (!chosen || !reading || !station) {
+      unavailable.push("Nearby stations have no measurements from the last 48 hours.");
+    } else {
       const metadata = (station.metadata ?? {}) as { network?: string; operator?: string };
       const aqiRow = reading.aqi_index_values.find((row) => row.aqi_scale === "ind_cpcb");
       measured = {
@@ -207,7 +307,7 @@ export async function getAreaAirQuality(
         station: {
           id: station.id,
           name: station.name,
-          distanceKm: Math.round(distanceKm * 10) / 10,
+          distanceKm: Math.round(chosen.distanceKm * 10) / 10,
           network: metadata.network ?? null,
           operator: metadata.operator ?? null,
         },
@@ -216,7 +316,7 @@ export async function getAreaAirQuality(
               scale: aqiRow.aqi_scale as AqiScaleCode,
               value: aqiRow.aqi_value,
               isLowerBound: aqiRow.is_lower_bound,
-              category: aqiRow.aqi_category,
+              category: isCpcbCategory(aqiRow.aqi_category) ? aqiRow.aqi_category : null,
               dominantPollutant: aqiRow.dominant_pollutant,
               origin: aqiRow.value_origin as AqiValueOrigin,
               calculationMethod: aqiRow.calculation_method,
@@ -231,37 +331,20 @@ export async function getAreaAirQuality(
           "CPCB AQI could not be calculated for the latest hour (not enough pollutants or hours of data).",
         );
       }
-      break;
     }
-    if (!measured) unavailable.push("Nearby stations have no stored measurements yet.");
   }
 
-  // Modelled: the area's own grid estimate.
   let modelled: AreaAirQuality["modelled"] = null;
-  if (openMeteoId) {
-    const { data: reading, error } = await db
-      .from("aqi_readings")
-      .select(`observed_at, fetched_at, pollutant_values (${POLLUTANT_COLUMNS})`)
-      .eq("location_id", location.id)
-      .eq("source_id", openMeteoId)
-      .eq("data_kind", "modelled")
-      .lte("observed_at", now.toISOString())
-      .order("observed_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw error;
-    if (reading) {
-      modelled = {
-        provenance: "modelled",
-        provider: "Open-Meteo",
-        pollutants: mapPollutants(reading.pollutant_values),
-        ...freshness(reading.observed_at, reading.fetched_at, MODELLED_STALE_AFTER_HOURS, now),
-      };
-    }
+  if (modelledReading.data) {
+    modelled = {
+      provenance: "modelled",
+      provider: "Open-Meteo",
+      pollutants: mapPollutants(modelledReading.data.pollutant_values),
+      ...freshness(modelledReading.data.observed_at, modelledReading.data.fetched_at, MODELLED_STALE_AFTER_HOURS, now),
+    };
+  } else {
+    unavailable.push("No modelled estimate is stored for this area yet.");
   }
-  if (!modelled) unavailable.push("No modelled estimate is stored for this area yet.");
-  if (measured?.isStale) unavailable.push("The latest station measurement is stale.");
-  if (modelled?.isStale) unavailable.push("The latest modelled estimate is stale.");
 
   return {
     location: {
@@ -283,13 +366,14 @@ export async function getAreaForecast(
   hoursAhead = 96,
   now: Date = new Date(),
 ): Promise<AreaForecast> {
-  const location = await getLocation(db, slug);
-  const sourceId = await getSourceId(db, "open_meteo");
+  const [location, sourceId] = await Promise.all([getLocation(db, slug), getSourceId(db, "open_meteo")]);
   const empty: AreaForecast = {
     location: { slug: location.slug, name: location.name },
     provenance: "forecast",
     provider: "Open-Meteo",
     issuedAt: null,
+    fetchedAt: null,
+    isStale: false,
     hours: [],
     unavailable: ["No forecast is stored for this area yet."],
   };
@@ -308,7 +392,7 @@ export async function getAreaForecast(
 
   const { data, error } = await db
     .from("pollution_forecasts")
-    .select(`forecast_for, pollutant_values (${POLLUTANT_COLUMNS})`)
+    .select(`forecast_for, fetched_at, pollutant_values!inner (${POLLUTANT_COLUMNS})`)
     .eq("location_id", location.id)
     .eq("source_id", sourceId)
     .eq("issued_at", latestRun.issued_at)
@@ -317,15 +401,24 @@ export async function getAreaForecast(
     .order("forecast_for");
   if (error) throw error;
 
-  return {
-    ...empty,
-    issuedAt: latestRun.issued_at,
-    hours: data.map((row) => ({
-      forecastFor: row.forecast_for,
-      pollutants: mapPollutants(row.pollutant_values),
-    })),
-    unavailable: data.length === 0 ? ["The stored forecast has no future hours."] : [],
-  };
+  const fetchedAt = data.reduce<string | null>(
+    (latest, row) => (latest === null || Date.parse(row.fetched_at) > Date.parse(latest) ? row.fetched_at : latest),
+    null,
+  );
+
+  return withCurrentForecastFreshness(
+    {
+      ...empty,
+      issuedAt: latestRun.issued_at,
+      fetchedAt,
+      hours: data.map((row) => ({
+        forecastFor: row.forecast_for,
+        pollutants: mapPollutants(row.pollutant_values),
+      })),
+      unavailable: data.length === 0 ? ["The stored forecast has no future hours."] : [],
+    },
+    now,
+  );
 }
 
 export type AreaSummary = {

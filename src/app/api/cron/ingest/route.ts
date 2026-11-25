@@ -19,11 +19,12 @@ export const maxDuration = 60;
  */
 export async function GET(request: Request) {
   const env = getServerEnv();
-  if (!env.CRON_SECRET || !env.SUPABASE_SERVICE_ROLE_KEY || !isSupabaseConfigured()) {
-    return jsonError("not_configured", "Ingestion is not configured.", 503);
-  }
-  if (!isValidBearer(request.headers.get("authorization"), env.CRON_SECRET)) {
+  // Authenticate first so unauthenticated callers learn nothing about configuration.
+  if (!env.CRON_SECRET || !isValidBearer(request.headers.get("authorization"), env.CRON_SECRET)) {
     return jsonError("unauthorized", "Missing or invalid credentials.", 401);
+  }
+  if (!env.SUPABASE_SERVICE_ROLE_KEY || !isSupabaseConfigured()) {
+    return jsonError("not_configured", "Ingestion is not configured.", 503);
   }
 
   const summary = await runAirQualityIngestion({

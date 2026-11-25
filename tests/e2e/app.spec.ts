@@ -59,6 +59,9 @@ test.describe("dashboard", () => {
     await page.goto("/dashboard");
     const selector = page.getByRole("combobox", { name: "Area" });
     await selector.selectOption("sitapura");
+    // Selecting alone must not navigate (WCAG 3.2.2); the Show button does.
+    await expect(page).not.toHaveURL(/location=sitapura/);
+    await page.getByRole("button", { name: "Show" }).click();
     await expect(page).toHaveURL(/location=sitapura/);
     await expect(selector).toHaveValue("sitapura");
     await expect(page.getByText("Open-Meteo, for Sitapura")).toBeVisible();
