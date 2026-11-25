@@ -13,7 +13,7 @@
 | What's happening? | **Dashboard** and **AI daily brief** | Live AQI from Jaipur's CPCB/RSPCB stations (via OpenAQ), calculated with India's CPCB method and labelled as such; every value shows source and time |
 | Why is it happening? | **Air Guardian** | Gemini function calling over allowlisted data tools; evidence and tool activity built by the server; English and Hindi |
 | What's likely to happen? | **City insights** and forecasts | 7-day trends, station comparison and daily rhythm calculated in code; forecasts labelled as modelled |
-| What should I do? | **Exposure planner** | Code ranks outdoor time windows from the forecast; Gemini explains, never calls anything "safe" |
+| What should I do? | **Health advisor** and **Exposure planner** | India's official AQI health advice (MoHFW/CPCB, WHO caveats) applied by a rules engine to your group and activity; the planner ranks outdoor times from the forecast; Gemini explains both, never diagnoses, prescribes or calls anything "safe" |
 | How can I help? | **AI photo reporter** and **pollution map** | Gemini vision classifies a citizen photo (category, confidence, limitations); reports appear on the map; photos stay private |
 
 **AI never invents a number:** every AQI or concentration in an AI answer must match the data it retrieved (the grounding check), or the answer is corrected or replaced by an honest fallback.
@@ -22,7 +22,7 @@
 | --- | --- | --- |
 | ![Exposure planner](docs/screenshots/planner.png) | ![City insights](docs/screenshots/insights.png) | ![Pollution map](docs/screenshots/map.png) |
 
-> **Status: Day 6 (feature-complete for the hackathon).** Real Jaipur air-quality data (OpenAQ stations, Open-Meteo model) with a Hawa AI-calculated CPCB AQI; dashboard, interactive pollution map, **Air Guardian** (Gemini tool calling, grounded answers with evidence, English and Hindi), an **AI Daily Air Brief**, the **Exposure planner** (deterministic forecast ranking with an optional grounded AI explanation), the **AI civic pollution reporter** (anonymous photo reports analysed by Gemini vision, shown on the map) and **City insights** (7-day trends, station comparison and daily rhythm calculated in code, with an optional AI interpretation). A **guided demo** (`/demo`) walks through everything on live data with readiness checks. No sign-in yet; Settings is a placeholder and is not in the navigation.
+> **Status: Day 6 (feature-complete for the hackathon).** Real Jaipur air-quality data (OpenAQ stations, Open-Meteo model) with a Hawa AI-calculated CPCB AQI; dashboard, interactive pollution map, **Air Guardian** (Gemini tool calling, grounded answers with evidence, English and Hindi), an **AI Daily Air Brief**, the **Exposure planner** (deterministic forecast ranking with an optional grounded AI explanation), the **AI civic pollution reporter** (anonymous photo reports analysed by Gemini vision, shown on the map) **City insights** (7-day trends, station comparison and daily rhythm calculated in code, with an optional AI interpretation) and the **Health advisor** (official MoHFW/CPCB guidance by group and activity). A **guided demo** (`/demo`) walks through everything on live data with readiness checks. No sign-in yet; Settings is a placeholder and is not in the navigation.
 
 ## Stack
 
@@ -75,6 +75,7 @@ npx playwright install chromium
 | `/planner` | Exposure planner (forecast ranking in code; AI explanation in English or Hindi) | Built; AI part needs `GEMINI_API_KEY` |
 | `/reports`, `/reports/new` | Civic reports: anonymous photo reports with AI analysis | Built; needs `GEMINI_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` |
 | `/insights` | City insights: 7-day trends, station comparison, daily rhythm, AI interpretation | Built; AI part needs `GEMINI_API_KEY` |
+| `/advisor?location&profile&activity` | Health advisor: official guidance for your group and activity, AI explanation (EN/HI) | Built |
 | `/demo` | Guided demo: live readiness checks (no provider or AI calls) and the 3-minute script with deep links | Built |
 | `/settings` | Settings | Placeholder |
 | `/api/health` | Liveness check | Built |
@@ -87,6 +88,7 @@ npx playwright install chromium
 | `/api/reports` | `GET` published reports (public columns); `POST` submit an analysed report (rate-limited) | Built |
 | `/api/reports/analyze` | AI photo analysis; nothing stored (rate-limited) | Built |
 | `/api/insights/explain` | AI interpretation of City insights (rate-limited) | Built |
+| `/api/advisor/explain` | AI explanation of a health advisory, with medical-safety checks (rate-limited) | Built |
 
 ## Project structure
 
@@ -103,7 +105,7 @@ tests/            unit/ · integration/ · e2e/
 docs/             architecture and development log
 ```
 
-See [docs/architecture.md](docs/architecture.md), [docs/database.md](docs/database.md), [docs/air-quality-data.md](docs/air-quality-data.md), [docs/ai-guardian.md](docs/ai-guardian.md), [docs/exposure-planner.md](docs/exposure-planner.md), [docs/civic-reports.md](docs/civic-reports.md) and [docs/city-insights.md](docs/city-insights.md) for the design and [AGENTS.md](AGENTS.md) for the engineering rules all contributors and AI agents follow.
+See [docs/architecture.md](docs/architecture.md), [docs/database.md](docs/database.md), [docs/air-quality-data.md](docs/air-quality-data.md), [docs/ai-guardian.md](docs/ai-guardian.md), [docs/exposure-planner.md](docs/exposure-planner.md), [docs/civic-reports.md](docs/civic-reports.md), [docs/city-insights.md](docs/city-insights.md) and [docs/health-advisor.md](docs/health-advisor.md) for the design and [AGENTS.md](AGENTS.md) for the engineering rules all contributors and AI agents follow.
 
 ## Environment variables
 

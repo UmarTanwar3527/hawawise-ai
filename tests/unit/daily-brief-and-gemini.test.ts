@@ -124,6 +124,23 @@ describe("Gemini client", () => {
     }
   });
 
+  it("stops retrying within its time budget and reports the model as unavailable", async () => {
+    vi.useFakeTimers();
+    try {
+      generateContent.mockRejectedValue(Object.assign(new Error("high demand"), { status: 503 }));
+      const { generateWithGemini, GEMINI_LIMITS } = await import("@/lib/gemini/client");
+      const started = Date.now();
+      const pending = generateWithGemini(request).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(GEMINI_LIMITS.budgetMs + 5_000);
+      expect(await pending).toMatchObject({ kind: "unavailable" });
+      expect(Date.now() - started).toBeLessThanOrEqual(GEMINI_LIMITS.budgetMs + 5_000);
+      // Retries on the primary, then the fallback model, all bounded.
+      expect(generateContent.mock.calls.length).toBeLessThanOrEqual(8);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not fall back on invalid requests", async () => {
     generateContent.mockRejectedValue(Object.assign(new Error("bad"), { status: 400 }));
     const { generateWithGemini } = await import("@/lib/gemini/client");

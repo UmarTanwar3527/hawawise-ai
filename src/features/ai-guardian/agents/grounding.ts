@@ -13,11 +13,29 @@ export function normaliseDigits(text: string): string {
 const UNIT = String.raw`(?:µg\/m³|μg\/m³|ug\/m3|µg\/m3|μg\/m3|mcg\/m3|mg\/m³|mg\/m3|ppb|ppm|माइक्रोग्राम)`;
 const CONCENTRATION = new RegExp(String.raw`(\d+(?:\.\d+)?)\s*${UNIT}`, "gi");
 // "AQI 242", "AQI of 242", "AQI is 242+", "AQI: 242", "AQI लगभग 242" (up to 20 chars between, no digits).
+// "AQI 242", "AQI of 242", "AQI is 242+", "AQI: 242", "AQI लगभग 242" (up to 20 chars between, no digits).
 const AQI_VALUE = /AQI[^0-9\n]{0,20}?(\d{1,3}(?:\.\d+)?)/gi;
+
+const MONTHS = "jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|जनवरी|फ़रवरी|फरवरी|मार्च|अप्रैल|मई|जून|जुलाई|अगस्त|सितंबर|अक्टूबर|नवंबर|दिसंबर";
+/**
+ * Times, dates and pollutant names contain digits that are not AQI or
+ * concentration claims ("AQI at 5:00 pm", "AQI on 25 Nov", "AQI, driven by
+ * PM2.5"). They are neutralised before matching so the real figure after
+ * them is still checked.
+ */
+function neutraliseNonClaims(text: string): string {
+  return text
+    .replace(/\b\d{1,2}:\d{2}(?:\s?(?:am|pm|a\.m\.|p\.m\.))?/gi, " TIME ")
+    .replace(/\b\d{1,2}\s?(?:am|pm|a\.m\.|p\.m\.)(?![a-z])/gi, " TIME ")
+    .replace(new RegExp(String.raw`\b\d{1,2}\s(?:${MONTHS})[a-z]*`, "giu"), " DATE ")
+    .replace(/\bPM\s?2\.5\b/gi, "PM-fine")
+    .replace(/\bPM\s?10\b/gi, "PM-coarse")
+    .replace(/\b(NO|SO|O)([23])\b/gi, "$1-x");
+}
 
 /** All numeric figures in `text` that claim to be an AQI or a concentration. */
 export function extractClaimedFigures(text: string): number[] {
-  const normalised = normaliseDigits(text);
+  const normalised = neutraliseNonClaims(normaliseDigits(text));
   const figures: number[] = [];
   for (const match of normalised.matchAll(CONCENTRATION)) figures.push(Number(match[1]));
   for (const match of normalised.matchAll(AQI_VALUE)) figures.push(Number(match[1]));

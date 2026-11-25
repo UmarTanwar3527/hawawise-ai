@@ -14,7 +14,11 @@ export function DailyBriefCard({ brief, now, className }: { brief: DailyBrief | 
   if (!brief) {
     return (
       <Card className={className}>
-        <CardHeader title="AI daily air brief" action={<Badge tone="neutral">No summary</Badge>} />
+        <CardHeader
+          title="AI daily air brief"
+          description="What is happening with Jaipur's air today?"
+          action={<Badge tone="neutral">No summary</Badge>}
+        />
         <EmptyState
           compact
           headingLevel="h3"
@@ -33,7 +37,7 @@ export function DailyBriefCard({ brief, now, className }: { brief: DailyBrief | 
     <Card className={className}>
       <CardHeader
         title="AI daily air brief"
-        description="AI-generated summary based on available environmental data."
+        description="What is happening with Jaipur's air today? AI-generated summary based on available environmental data."
         action={
           <span className="flex items-center gap-1.5">
             {stale ? <Badge tone="warning">Stale</Badge> : null}

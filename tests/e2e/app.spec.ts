@@ -11,6 +11,7 @@ const routes = [
   { path: "/insights", heading: "City insights" },
   { path: "/settings", heading: "Settings" },
   { path: "/demo", heading: "Guided demo" },
+  { path: "/advisor", heading: "Health advisor" },
 ];
 
 /** Fails the test if the page scrolls horizontally at the current viewport. */

@@ -43,6 +43,7 @@ test.describe("Exposure planner", () => {
     });
     await page.goto(PLAN);
     const button = page.getByRole("button", { name: "हिंदी में समझाएँ" });
+    await button.waitFor({ timeout: 15_000 }).catch(() => {});
     test.skip(!(await button.isVisible()), "AI explanation not available");
     await button.click();
     await expect(page.getByText("दोपहर का समय तुलनात्मक रूप से बेहतर है।")).toBeVisible();

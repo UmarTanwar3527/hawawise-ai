@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
@@ -24,7 +25,14 @@ export default function GuardianPage({ searchParams }: PageProps<"/guardian">) {
       />
       <div role="note" className="flex gap-3 rounded-xl border border-blue-200 bg-primary-soft p-4 text-sm leading-6 text-primary-strong">
         <Icon name="info" size={18} className="mt-0.5 shrink-0" />
-        Air Guardian gives general air-quality information. It does not diagnose conditions or replace advice from a medical professional.
+        <p>
+          Air Guardian gives general air-quality information. It does not diagnose conditions or replace advice from a medical
+          professional. For practical steps for you or your family, open the{" "}
+          <Link href="/advisor" className="font-semibold underline">
+            Health advisor
+          </Link>
+          .
+        </p>
       </div>
       <Suspense fallback={<Skeleton className="h-[560px] w-full rounded-card" />}>
         <GuardianContent searchParams={searchParams} />

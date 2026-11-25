@@ -28,6 +28,7 @@ test.describe("City insights", () => {
     });
     await page.goto("/insights");
     const button = page.getByRole("button", { name: "Explain in English" });
+    await button.waitFor({ timeout: 15_000 }).catch(() => {});
     test.skip(!(await button.isVisible()), "AI interpretation not available");
     await button.click();
     await expect(page.getByText("PM2.5 peaks in the evening.")).toBeVisible();

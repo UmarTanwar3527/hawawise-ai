@@ -65,7 +65,7 @@ Run `npm run check` before reporting work as done, and `npm run test:e2e` for UI
 - Evidence, tool activity and staleness warnings are built server-side from actual tool results, never written by the model. Every AQI or concentration figure in a model answer must pass the grounding check.
 - AI output is generated on the server only. Briefs are generated on a schedule, never on page load. Standard tests mock Gemini; never make live AI calls in `npm test`.
 - The model requests tools; our server validates the arguments and executes the tools. Never execute arbitrary model-generated requests.
-- No medical diagnosis, and no claim that an activity is completely safe based on AQI alone.
+- No medical diagnosis, no medication or treatment instructions, and no claim that an activity is completely safe based on AQI alone. Health advice comes only from the rules engine in `src/features/health-advisor/` (official MoHFW/CPCB/WHO guidance); AI may only explain it.
 - Civic reports are community submissions, not official complaints.
 
 ## Security

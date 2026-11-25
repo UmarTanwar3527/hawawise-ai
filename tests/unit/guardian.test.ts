@@ -85,6 +85,14 @@ describe("grounding check", () => {
   it("extracts AQI and concentration claims, including Devanagari digits", () => {
     expect(extractClaimedFigures("AQI of 242 and PM2.5 at 54.5 µg/m³")).toEqual([54.5, 242]);
     expect(extractClaimedFigures("AQI २४२ है")).toEqual([242]);
+    // Times and pollutant names after "AQI" are not AQI claims.
+    expect(extractClaimedFigures("The AQI at 5:00 pm IST was 242")).toEqual([242]);
+    expect(extractClaimedFigures("AQI measured at 5 pm")).toEqual([]);
+    expect(extractClaimedFigures("AQI, driven by PM2.5, is high")).toEqual([]);
+    expect(extractClaimedFigures("AQI of 138 (Moderate)")).toEqual([138]);
+    expect(extractClaimedFigures("AQI on 25 Nov was 242")).toEqual([242]);
+    expect(extractClaimedFigures("25 नवंबर को AQI 242 था")).toEqual([242]);
+    expect(extractClaimedFigures("PM2.5 at 54.5 µg/m³")).toEqual([54.5]);
   });
   it("accepts quoted or rounded figures from the data and rejects others", () => {
     const allowed = collectNumbers({ aqi: 140, pm25: 54.5 });

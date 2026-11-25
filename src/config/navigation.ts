@@ -33,6 +33,12 @@ export const primaryNavigation: readonly NavItem[] = [
     icon: "calendar",
   },
   {
+    href: "/advisor",
+    label: "Health advisor",
+    description: "What to do at today's AQI, for you",
+    icon: "shield",
+  },
+  {
     href: "/reports",
     label: "Civic reports",
     description: "Report pollution with a photo; AI classifies it",

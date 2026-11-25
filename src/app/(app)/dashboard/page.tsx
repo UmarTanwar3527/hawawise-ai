@@ -18,6 +18,9 @@ import { JaipurMap } from "@/features/air-quality/components/dashboard/jaipur-ma
 import { LocationSelector } from "@/features/air-quality/components/dashboard/location-selector";
 import { ModelledCard } from "@/features/air-quality/components/dashboard/modelled-card";
 import { NextSteps } from "@/features/air-quality/components/dashboard/next-steps";
+import { AdvisorSummaryCard } from "@/features/health-advisor/components/advisor-summary-card";
+import { buildAdvisory } from "@/features/health-advisor/rules";
+import { forecastHint, measurementFrom } from "@/features/health-advisor/services/advisor";
 import { PollutantGrid } from "@/features/air-quality/components/dashboard/pollutant-grid";
 import { SourceCard } from "@/features/air-quality/components/dashboard/source-card";
 import { ProvenanceBadge } from "@/features/air-quality/components/provenance-badge";
@@ -103,6 +106,12 @@ async function DashboardContent({ searchParams }: { searchParams: PageProps<"/da
   const current = withCurrentFreshness(data.current, now);
   const forecast = withCurrentForecastFreshness(data.forecast, now);
   const measured = current.measured;
+  const advisory = buildAdvisory({
+    profile: "unspecified",
+    activity: "outdoor",
+    measurement: measurementFrom(current),
+    forecast: forecastHint(forecast, slug, now),
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -145,7 +154,7 @@ async function DashboardContent({ searchParams }: { searchParams: PageProps<"/da
         />
         <ModelledCard current={current} />
 
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-3">
           <CardHeader
             title="Hourly trend"
             description={measured ? `Last 24 hours at ${measured.station.name}` : "No station selected"}
@@ -159,7 +168,9 @@ async function DashboardContent({ searchParams }: { searchParams: PageProps<"/da
             )}
           </div>
         </Card>
-        <DailyBriefCard brief={brief} now={now} />
+        <DailyBriefCard className="lg:col-span-2" brief={brief} now={now} />
+
+        <AdvisorSummaryCard advisory={advisory} slug={slug} />
 
         <NextSteps className="lg:col-span-3" slug={slug} areaName={current.location.name} />
 

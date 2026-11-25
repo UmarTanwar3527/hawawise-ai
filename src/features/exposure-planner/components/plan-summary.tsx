@@ -7,6 +7,7 @@ import { ProvenanceBadge } from "@/features/air-quality/components/provenance-ba
 import { CPCB_AQI_CATEGORIES } from "@/features/air-quality/cpcb-aqi-scale";
 import type { AreaAirQuality } from "@/features/air-quality/services/area-air-quality";
 import { cn } from "@/lib/utils/cn";
+import { advisorHref } from "@/features/health-advisor/schemas/advisor-request";
 import { formatAge, formatConcentration, formatDateTimeIst, formatTimeIst } from "@/lib/utils/format";
 
 import { ACTIVITIES } from "../constants";
@@ -210,8 +211,8 @@ function CurrentContext({ current, plan }: { current: AreaAirQuality; plan: Plan
           {plan.request.sensitive ? (
             <li className="flex gap-2">
               <Icon name="shield" size={16} className="mt-0.5 shrink-0 text-ink-subtle" />
-              For sensitive groups: consider a shorter or lighter session, keep any prescribed medication with you, follow
-              your doctor&apos;s advice, and stop if you feel breathless or unwell.
+              For sensitive groups: consider a shorter or lighter session, follow your doctor&apos;s instructions, and stop
+              if you feel breathless or unwell.
             </li>
           ) : null}
           <li className="flex gap-2">
@@ -219,6 +220,19 @@ function CurrentContext({ current, plan }: { current: AreaAirQuality; plan: Plan
             Check the latest measured values just before you start; forecasts can be wrong.
           </li>
         </ul>
+        <ButtonLink
+          href={advisorHref({
+            location: plan.request.location,
+            activity: plan.request.activity === "workout" ? "exercise" : plan.request.activity,
+            profile: plan.request.sensitive ? "unspecified" : "general",
+          })}
+          variant="secondary"
+          size="sm"
+          className="self-start"
+        >
+          <Icon name="shield" size={14} />
+          Health advice for this activity
+        </ButtonLink>
       </div>
     </Card>
   );

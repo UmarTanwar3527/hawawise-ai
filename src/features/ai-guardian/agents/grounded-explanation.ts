@@ -46,6 +46,7 @@ export async function generateGroundedExplanation({
   extraAllowed = [],
   maxOutputTokens = 700,
   logLabel,
+  validate,
 }: {
   facts: unknown;
   /** First line of the user turn, e.g. "Explain this exposure plan." */
@@ -57,6 +58,8 @@ export async function generateGroundedExplanation({
   extraAllowed?: number[];
   maxOutputTokens?: number;
   logLabel: string;
+  /** Extra content rule (e.g. medical safety). Return a correction message, or null if acceptable. */
+  validate?: (text: string) => string | null;
 }): Promise<GroundedExplanation> {
   const allowed = collectDataNumbers(facts, new Set(extraAllowed));
   const contents: ModelContent[] = [{ role: "user", parts: [{ text: `${task}\n\nDATA (JSON):\n${JSON.stringify(facts)}` }] }];
@@ -71,7 +74,11 @@ export async function generateGroundedExplanation({
     else {
       const unsupported = findUnsupportedFigures(parsed.data.explanation, allowed);
       const wrongLanguage = DEVANAGARI.test(parsed.data.explanation) !== (language === "hi");
-      if (unsupported.length) {
+      const violation = validate?.(parsed.data.explanation) ?? null;
+      if (violation) {
+        console.warn(`${logLabel} explanation rejected by content rules`);
+        problem = violation;
+      } else if (unsupported.length) {
         console.warn(`${logLabel} explanation rejected figures`, unsupported.join(","));
         problem = `Rejected: these figures are not in the data: ${unsupported.join(", ")}. Use only figures from the data.`;
       } else if (wrongLanguage) {

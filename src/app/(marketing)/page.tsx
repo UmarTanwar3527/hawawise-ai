@@ -83,9 +83,9 @@ const questions: { question: string; answer: string; href: string; module: strin
   },
   {
     question: "What should I do?",
-    answer: "The exposure planner ranks outdoor time windows in code from the forecast; AI explains the result.",
-    href: "/planner",
-    module: "Exposure planner",
+    answer: "The health advisor applies India's official AQI health advice to your group and activity; the planner ranks the best times. AI explains both.",
+    href: "/advisor",
+    module: "Health advisor",
     icon: "calendar",
   },
   {
@@ -209,7 +209,7 @@ export default function LandingPage() {
           <div className="max-w-2xl">
             <h2 className="text-3xl font-semibold tracking-tight text-ink">Five questions, answered with evidence</h2>
             <p className="mt-3 text-base leading-7 text-ink-muted">
-              Six modules on one verified data layer. AI retrieves, explains and classifies; code calculates.
+              Seven modules on one verified data layer. AI retrieves, explains and classifies; code calculates.
             </p>
           </div>
           <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

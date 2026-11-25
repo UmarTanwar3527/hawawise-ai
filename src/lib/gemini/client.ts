@@ -9,6 +9,8 @@ import { GeminiError, type GenerateFn, type GenerateRequest, type GenerateResult
 /** Hard limits per model call. */
 export const GEMINI_LIMITS = {
   timeoutMs: 25_000,
+  /** Total time for one turn across retries and fallback models, kept under the 60 s route limit. */
+  budgetMs: 40_000,
   /** Retries for capacity errors (5xx), which fail fast and often clear within seconds. */
   retriesOnUnavailable: 3,
   /** Retries for timeouts, which are slow; one keeps a turn inside the route's time limit. */
@@ -56,10 +58,12 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export const generateWithGemini: GenerateFn = async (request: GenerateRequest) => {
   const env = getServerEnv();
   const models = [...new Set([env.GEMINI_MODEL, ...env.GEMINI_FALLBACK_MODELS])];
+  const deadline = Date.now() + GEMINI_LIMITS.budgetMs;
   let lastError: GeminiError | undefined;
   for (const model of models) {
+    if (Date.now() > deadline - MIN_ATTEMPT_MS) break;
     try {
-      return await generateWithModel(model, request);
+      return await generateWithModel(model, request, deadline);
     } catch (error) {
       lastError = error instanceof GeminiError ? error : classify(error);
       // Only quota or capacity problems move on to the next model.
@@ -70,11 +74,15 @@ export const generateWithGemini: GenerateFn = async (request: GenerateRequest) =
   throw lastError ?? new GeminiError("unavailable");
 };
 
-async function generateWithModel(model: string, request: GenerateRequest): Promise<GenerateResult> {
+/** Do not start an attempt with less time than this left in the budget. */
+const MIN_ATTEMPT_MS = 3_000;
+
+async function generateWithModel(model: string, request: GenerateRequest, deadline: number): Promise<GenerateResult> {
   const ai = getClient();
   let lastError: GeminiError | undefined;
   const maxRetries = Math.max(GEMINI_LIMITS.retriesOnUnavailable, GEMINI_LIMITS.retriesOnTimeout);
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    if (attempt > 0 && Date.now() > deadline - MIN_ATTEMPT_MS) break;
     try {
       const response = await ai.models.generateContent({
         model,
@@ -99,7 +107,7 @@ async function generateWithModel(model: string, request: GenerateRequest): Promi
               allowedFunctionNames: request.allowedTools,
             },
           },
-          abortSignal: AbortSignal.timeout(GEMINI_LIMITS.timeoutMs),
+          abortSignal: AbortSignal.timeout(Math.max(1_000, Math.min(GEMINI_LIMITS.timeoutMs, deadline - Date.now()))),
         },
       });
 
@@ -129,8 +137,10 @@ async function generateWithModel(model: string, request: GenerateRequest): Promi
             ? GEMINI_LIMITS.retriesOnTimeout
             : 0;
       if (attempt >= allowed) break;
-      // About 1 s, 2 s, 4 s (+ jitter).
-      await sleep(1000 * 2 ** attempt + Math.random() * 400);
+      // About 1 s, 2 s, 4 s (+ jitter), only while the budget allows another attempt.
+      const pause = 1000 * 2 ** attempt + Math.random() * 400;
+      if (Date.now() + pause > deadline - MIN_ATTEMPT_MS) break;
+      await sleep(pause);
     }
   }
   throw lastError ?? new GeminiError("unavailable");

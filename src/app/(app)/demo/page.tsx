@@ -86,6 +86,19 @@ const SCENES: Scene[] = [
     say: "Code ranks the time windows from real forecast data; the AI only explains the result.",
   },
   {
+    title: "Health advisor",
+    seconds: 20,
+    href: "/advisor?location=mansarovar&profile=respiratory&activity=running",
+    cta: "Open the advisor",
+    icon: "shield",
+    show: [
+      "Official MoHFW/CPCB advice for the chosen group, with every item tagged by its source.",
+      "Switch the profile (for example, Pregnant person) to show the advice change.",
+      "Press \"हिंदी में समझाएँ\": Gemini explains, but cannot diagnose or mention medicines.",
+    ],
+    say: "The rules come from India's official health advisory, not from the AI. Gemini only makes them easy to understand.",
+  },
+  {
     title: "AI photo reporter",
     seconds: 40,
     href: "/reports/new",
