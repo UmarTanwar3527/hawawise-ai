@@ -6,7 +6,7 @@ import { jsonError } from "@/lib/http/api-response";
 import { isValidBearer } from "@/lib/security/bearer";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { runAirQualityIngestion } from "@/services/ingestion/air-quality-ingestion";
+import { MAX_STATION_WINDOW_HOURS, runAirQualityIngestion } from "@/services/ingestion/air-quality-ingestion";
 import { OpenMeteoProvider } from "@/services/providers/open-meteo/client";
 import { OpenAqProvider } from "@/services/providers/openaq/client";
 
@@ -27,7 +27,15 @@ export async function GET(request: Request) {
     return jsonError("not_configured", "Ingestion is not configured.", 503);
   }
 
+  // Optional one-off backfill of station history: ?backfillHours=31..192.
+  const backfillRaw = new URL(request.url).searchParams.get("backfillHours");
+  const backfillHours = backfillRaw === null ? undefined : Number(backfillRaw);
+  if (backfillHours !== undefined && (!Number.isInteger(backfillHours) || backfillHours < 31 || backfillHours > MAX_STATION_WINDOW_HOURS)) {
+    return jsonError("invalid_request", `backfillHours must be an integer from 31 to ${MAX_STATION_WINDOW_HOURS}.`, 400);
+  }
+
   const summary = await runAirQualityIngestion({
+    stationWindowHours: backfillHours,
     db: createSupabaseAdminClient(),
     stations: env.OPENAQ_API_KEY ? new OpenAqProvider(env.OPENAQ_API_KEY) : null,
     model: new OpenMeteoProvider(),

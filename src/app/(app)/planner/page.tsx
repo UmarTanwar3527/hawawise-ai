@@ -22,7 +22,7 @@ import {
   getAreasCached,
 } from "@/features/air-quality/services/dashboard-data";
 import { PLANNER_FORECAST_HOURS } from "@/features/exposure-planner/constants";
-import { PlanExplanation } from "@/features/exposure-planner/components/plan-explanation";
+import { ExplanationCard } from "@/features/ai-guardian/components/explanation-card";
 import { PlannerForm } from "@/features/exposure-planner/components/planner-form";
 import { PlanSummary } from "@/features/exposure-planner/components/plan-summary";
 import { planRequestFromSearchParams } from "@/features/exposure-planner/schemas/plan-request";
@@ -94,7 +94,15 @@ async function PlannerContent({ searchParams }: { searchParams: PageProps<"/plan
         <PlannerForm areas={areas} value={request} />
       </Card>
       <PlanSummary plan={plan} current={withCurrentFreshness(current, now)} />
-      {plan.status === "ok" ? <PlanExplanation request={request} enabled={isGeminiConfigured()} /> : null}
+      {plan.status === "ok" ? (
+        <ExplanationCard
+          endpoint="/api/planner/explain"
+          payload={request}
+          enabled={isGeminiConfigured()}
+          description="Gemini explains the comparison above. It cannot change the ranking, and every figure is checked against the data."
+          basis="The comparison above does not depend on AI."
+        />
+      ) : null}
       <details className="rounded-card border border-line bg-surface p-5 text-sm text-ink-muted shadow-card">
         <summary className="cursor-pointer font-semibold text-ink">How the planner works</summary>
         <ol className="mt-3 flex list-decimal flex-col gap-2 pl-5">

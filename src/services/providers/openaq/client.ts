@@ -86,7 +86,8 @@ export class OpenAqProvider implements StationNetworkProvider {
       const query = new URLSearchParams({
         datetime_from: window.from.toISOString(),
         datetime_to: window.to.toISOString(),
-        limit: "100",
+        // One page covers the window (hourly values; OpenAQ allows up to 1000).
+        limit: String(Math.min(1000, Math.max(100, Math.ceil((window.to.getTime() - window.from.getTime()) / 3_600_000) + 10))),
       });
       const response = await this.request(
         `/sensors/${encodeURIComponent(sensor.id)}/hours?${query}`,

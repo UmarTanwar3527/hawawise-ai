@@ -8,8 +8,6 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Markdown } from "@/components/ui/markdown";
 
-import type { PlanRequest } from "../schemas/plan-request";
-
 type State =
   | { kind: "idle" }
   | { kind: "loading"; language: "en" | "hi" }
@@ -18,19 +16,34 @@ type State =
   | { kind: "error"; message: string };
 
 /**
- * On-demand AI explanation of the calculated comparison. The server recalculates
- * the plan from stored data; only the visitor's choices are sent.
+ * On-demand AI explanation of statistics the server has already calculated.
+ * The endpoint recalculates everything from stored data; the browser sends
+ * only the visitor's choices and the language.
  */
-export function PlanExplanation({ request, enabled }: { request: PlanRequest; enabled: boolean }) {
+export function ExplanationCard({
+  endpoint,
+  payload,
+  enabled,
+  title = "AI explanation",
+  description,
+  basis = "The figures above do not depend on AI.",
+}: {
+  endpoint: string;
+  payload: Record<string, unknown>;
+  enabled: boolean;
+  title?: string;
+  description: string;
+  basis?: string;
+}) {
   const [state, setState] = useState<State>({ kind: "idle" });
 
   const explain = async (language: "en" | "hi") => {
     setState({ kind: "loading", language });
     try {
-      const response = await fetch("/api/planner/explain", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...request, language }),
+        body: JSON.stringify({ ...payload, language }),
       });
       const body = (await response.json().catch(() => null)) as
         | { status?: string; explanation?: string; error?: { message?: string } }
@@ -52,8 +65,8 @@ export function PlanExplanation({ request, enabled }: { request: PlanRequest; en
   return (
     <Card>
       <CardHeader
-        title="AI explanation"
-        description="Gemini explains the comparison above. It cannot change the ranking, and every figure is checked against the data."
+        title={title}
+        description={description}
         action={
           <Badge tone="info">
             <Icon name="sparkle" size={12} />
@@ -63,7 +76,7 @@ export function PlanExplanation({ request, enabled }: { request: PlanRequest; en
       />
       <div className="flex flex-col gap-4 p-5">
         {!enabled ? (
-          <p className="text-sm text-ink-muted">AI explanations are not configured. The comparison above does not depend on AI.</p>
+          <p className="text-sm text-ink-muted">AI explanations are not configured. {basis}</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="secondary" size="sm" disabled={loading} onClick={() => explain("en")}>
@@ -85,7 +98,7 @@ export function PlanExplanation({ request, enabled }: { request: PlanRequest; en
           ) : null}
           {state.kind === "ungrounded" ? (
             <p className="rounded-lg border border-line bg-canvas p-4 text-sm text-ink-muted">
-              The AI could not produce an explanation whose figures match the data, so none is shown. The comparison above is unaffected.
+              The AI could not produce an explanation whose figures match the data, so none is shown. {basis}
             </p>
           ) : null}
           {state.kind === "error" ? (

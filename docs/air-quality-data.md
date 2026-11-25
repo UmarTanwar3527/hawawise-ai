@@ -89,3 +89,7 @@ Every calculated value stores its sub-indices, averages, hours used and excluded
 - Schedule hourly ingestion after deployment, and alert on `provider_sync_logs` failures.
 - Per-IP rate limiting of the public API is not implemented (CDN caching only). Add it with a shared store if abuse appears.
 - Google Air Quality can be added later as another `ModelledGridProvider` without changing the read API.
+
+## Backfill
+
+`GET /api/cron/ingest?backfillHours=31..192` (Bearer `CRON_SECRET`) fetches up to 8 days of station history in one run, which gives 7 days of calculated AQI. It uses the same pipeline and idempotent upserts. It was run once on 2026-11-25. See `docs/city-insights.md`.

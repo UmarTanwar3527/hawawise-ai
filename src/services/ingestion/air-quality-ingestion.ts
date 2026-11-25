@@ -26,6 +26,8 @@ const HOUR = 3_600_000;
  * stored values are never recomputed from a truncated window.
  */
 const STATION_WINDOW_HOURS = 30;
+/** Upper bound for a one-off backfill: 8 days gives 7 days of AQI values. */
+export const MAX_STATION_WINDOW_HOURS = 8 * 24;
 const AQI_WINDOW_HOURS = 24;
 /** A station with no data for this long is stored but marked inactive. */
 const STATION_INACTIVE_AFTER_HOURS = 7 * 24;
@@ -53,6 +55,8 @@ export type IngestionDeps = {
   stations: StationNetworkProvider | null;
   model: ModelledGridProvider;
   now?: () => Date;
+  /** Station history to fetch (default 30 h; up to MAX_STATION_WINDOW_HOURS for a backfill). */
+  stationWindowHours?: number;
 };
 
 function chunk<T>(items: T[], size = CHUNK): T[][] {
@@ -254,7 +258,12 @@ async function ingestStations(
   const active = discovery.stations.filter((station) => stationRows.get(station.externalId)?.active);
   summary.notes.push(`${active.length} active of ${discovery.stations.length} stations`);
 
-  const window = { from: new Date(now.getTime() - STATION_WINDOW_HOURS * HOUR), to: now };
+  const windowHours = Math.min(
+    Math.max(Math.round(deps.stationWindowHours ?? STATION_WINDOW_HOURS), STATION_WINDOW_HOURS),
+    MAX_STATION_WINDOW_HOURS,
+  );
+  const window = { from: new Date(now.getTime() - windowHours * HOUR), to: now };
+  if (windowHours !== STATION_WINDOW_HOURS) summary.notes.push(`backfill window ${windowHours} h`);
   let failures = 0;
 
   // Two at a time keeps a run (about 7 requests per station) under OpenAQ's 60/min.
