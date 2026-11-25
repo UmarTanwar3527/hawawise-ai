@@ -9,7 +9,10 @@ import { GeminiError, type GenerateFn, type GenerateRequest, type GenerateResult
 /** Hard limits per model call. */
 export const GEMINI_LIMITS = {
   timeoutMs: 25_000,
-  retries: 1,
+  /** Retries for capacity errors (5xx), which fail fast and often clear within seconds. */
+  retriesOnUnavailable: 3,
+  /** Retries for timeouts, which are slow; one keeps a turn inside the route's time limit. */
+  retriesOnTimeout: 1,
   maxOutputTokens: 1_500,
 } as const;
 
@@ -70,7 +73,8 @@ export const generateWithGemini: GenerateFn = async (request: GenerateRequest) =
 async function generateWithModel(model: string, request: GenerateRequest): Promise<GenerateResult> {
   const ai = getClient();
   let lastError: GeminiError | undefined;
-  for (let attempt = 0; attempt <= GEMINI_LIMITS.retries; attempt += 1) {
+  const maxRetries = Math.max(GEMINI_LIMITS.retriesOnUnavailable, GEMINI_LIMITS.retriesOnTimeout);
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     try {
       const response = await ai.models.generateContent({
         model,
@@ -118,9 +122,15 @@ async function generateWithModel(model: string, request: GenerateRequest): Promi
     } catch (error) {
       lastError = classify(error);
       // Quota errors (429) are per-minute or per-day: retrying immediately only burns more quota.
-      const transient = lastError.kind === "unavailable" || lastError.kind === "timeout";
-      if (!transient || attempt === GEMINI_LIMITS.retries) break;
-      await sleep(600 * 2 ** attempt + Math.random() * 300);
+      const allowed =
+        lastError.kind === "unavailable"
+          ? GEMINI_LIMITS.retriesOnUnavailable
+          : lastError.kind === "timeout"
+            ? GEMINI_LIMITS.retriesOnTimeout
+            : 0;
+      if (attempt >= allowed) break;
+      // About 1 s, 2 s, 4 s (+ jitter).
+      await sleep(1000 * 2 ** attempt + Math.random() * 400);
     }
   }
   throw lastError ?? new GeminiError("unavailable");

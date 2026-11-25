@@ -51,7 +51,7 @@ There is no tool for arbitrary SQL, URLs or code.
 | `GEMINI_FALLBACK_MODELS` | `gemini-3.1-flash-lite,gemini-3.5-flash` | Tried in order on quota (429) or capacity (5xx) errors. |
 | `GEMINI_THINKING_LEVEL` | `minimal` | Lower is faster. Grounding is enforced server-side regardless. |
 
-Per call: 25 s timeout, 1 retry on timeouts and 5xx (no immediate retry on 429), and a cap of 1,500 output tokens.
+Per call: 25 s timeout, up to 3 retries with back-off (about 1, 2 and 4 s) on capacity errors (5xx), 1 retry on timeouts, no immediate retry on 429 (the next fallback model is tried instead), and a cap of 1,500 output tokens.
 
 ## Measured behaviour (2026-11-25, local, live data)
 

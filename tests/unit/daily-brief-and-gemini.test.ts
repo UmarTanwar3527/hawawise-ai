@@ -109,6 +109,21 @@ describe("Gemini client", () => {
     expect(generateContent.mock.calls.map((call) => call[0].model)).toEqual(["primary-model", "fallback-model"]);
   });
 
+  it("retries capacity errors (503) on the same model with back-off before falling back", async () => {
+    vi.useFakeTimers();
+    try {
+      const unavailable = () => Object.assign(new Error("high demand"), { status: 503 });
+      generateContent.mockRejectedValueOnce(unavailable()).mockRejectedValueOnce(unavailable()).mockResolvedValueOnce(ok);
+      const { generateWithGemini } = await import("@/lib/gemini/client");
+      const pending = generateWithGemini(request);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect((await pending).functionCalls[0]?.name).toBe("submit_answer");
+      expect(generateContent.mock.calls.map((call) => call[0].model)).toEqual(["primary-model", "primary-model", "primary-model"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not fall back on invalid requests", async () => {
     generateContent.mockRejectedValue(Object.assign(new Error("bad"), { status: 400 }));
     const { generateWithGemini } = await import("@/lib/gemini/client");
