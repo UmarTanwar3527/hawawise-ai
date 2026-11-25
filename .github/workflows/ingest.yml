@@ -1,0 +1,39 @@
+name: Hourly air-quality ingestion
+
+# Calls the deployed /api/cron/ingest endpoint. Configure in the repository:
+#   Settings → Secrets and variables → Actions
+#     Secret   CRON_SECRET     same value as the deployment's CRON_SECRET
+#     Variable HAWA_BASE_URL   e.g. https://hawa-ai.vercel.app (no trailing slash)
+# The job is skipped until HAWA_BASE_URL is set.
+
+on:
+  schedule:
+    # Minute 20: Jaipur station hours reach OpenAQ with a lag, so avoid :00.
+    - cron: "20 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    if: ${{ vars.HAWA_BASE_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run ingestion
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BASE_URL: ${{ vars.HAWA_BASE_URL }}
+        run: |
+          status=$(curl -sS -o response.json -w "%{http_code}" --max-time 120 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${BASE_URL}/api/cron/ingest")
+          echo "HTTP ${status}"
+          # The summary contains provider statuses and counts only, no secrets.
+          jq -r '.providers[]? | "\(.provider): \(.status) (\(.recordsWritten) records)"' response.json || cat response.json
+          test "${status}" = "200"
