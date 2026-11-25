@@ -39,7 +39,9 @@ locations ────┴─ pollution_forecasts ─┴─ pollutant_values ◄�
 | Idempotent ingestion | Unique on (location, source, observed_at) for readings and (location, source, forecast_for, issued_at) for forecasts. |
 | Coordinates cannot drift | `locations.geom` is generated from latitude/longitude. |
 | Stations are traceable | `monitoring_station` locations must reference a data source and external id. |
-| Raw payloads kept for audit | `provider_payloads` (30-day `expires_at`), readable only by the service role. |
+| Raw payloads kept for audit | `provider_payloads` (7-day expiry set by ingestion), readable only by the service role. |
+| Calculated vs reported AQI | `aqi_index_values.value_origin` (`provider_reported` / `hawa_calculated`) is required. Calculated values must name `calculation_method` and may store `calculation_details`. `is_lower_bound` marks values such as "401+". |
+| Integration health | `provider_sync_logs` records each ingestion run (service role only). |
 
 ## Access control
 
@@ -49,7 +51,7 @@ RLS is enabled on every table. Grants start from zero for `anon` and `authentica
 | --- | --- | --- |
 | data_sources, locations | read active rows | read active rows |
 | aqi_readings, pollution_forecasts, aqi_index_values, pollutant_values | read | read |
-| provider_payloads | none | none |
+| provider_payloads, provider_sync_logs | none | none |
 | user_profiles | none | read and update own (name, avatar) |
 | user_preferences | none | read and update own |
 | ai_conversations | none | full CRUD on own (title only) |
@@ -80,5 +82,4 @@ Supabase's default privileges grant new `public` tables to `anon` and `authentic
 - **Retention:** schedule deletion of expired `provider_payloads` (for example with `pg_cron`) and define a retention period for AI conversations.
 - **Storage cleanup:** deleting a report removes its `report_media` rows but not the stored files. Add a cleanup job.
 - **Moderation:** report review roles and workflow (status changes currently need the service role).
-- **Monitoring stations:** ingest OpenAQ stations as `monitoring_station` locations during the provider integration.
 - **Later tables:** `provider_sync_logs`, `ai_tool_calls`, knowledge tables with embeddings, `audit_logs`.

@@ -15,7 +15,8 @@
     "db:rehearse": "scripts/db.sh rehearse",
     "db:push": "scripts/db.sh push",
     "db:test": "scripts/db.sh test",
-    "db:types": "scripts/db.sh types"
+    "db:types": "scripts/db.sh types",
+    "test:live": "RUN_LIVE_TESTS=1 vitest run tests/integration"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

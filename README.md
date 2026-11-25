@@ -2,11 +2,11 @@
 
 Evidence-grounded urban air-quality intelligence, piloting in **Jaipur, Rajasthan**.
 
-> **Status: Day 1, steps 1–2.** App shell, routes, design system and tests are in place. The Supabase database is live: schema, Row Level Security, private storage and Jaipur reference locations, verified by 53 pgTAP security tests. Air-quality providers and the AI assistant are **not connected yet**. Pages show labelled placeholders and never sample data.
+> **Status: Day 1, steps 1–3.** App shell, design system and tests are in place. The Supabase database is live with RLS (57 pgTAP tests). Real Jaipur air-quality data is ingested from **OpenAQ** (CPCB/RSPCB stations, measured) and **Open-Meteo** (modelled and forecast), with a Hawa AI-calculated CPCB AQI, served by `/api/air-quality` and `/api/forecast`. The dashboard UI and the AI assistant are **not connected yet**.
 
 ## Stack
 
-Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4 · Zod · Vitest · Playwright. Planned: Supabase (Postgres, PostGIS, Auth, Storage), Gemini API, Google Maps Platform, Google Air Quality API, OpenAQ. Deployment target: Vercel.
+Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4 · Zod · Vitest · Playwright. Data: Supabase (Postgres, PostGIS, Storage), OpenAQ, Open-Meteo. Planned: Supabase Auth, Gemini API, Google Maps Platform. Deployment target: Vercel.
 
 ## Getting started
 
@@ -33,6 +33,7 @@ npx playwright install chromium
 | `npm run typecheck` | Generate route types and run `tsc --noEmit` |
 | `npm run lint` | Run ESLint (Next.js core-web-vitals and TypeScript rules) |
 | `npm test` | Run unit tests (Vitest) |
+| `npm run test:live` | Live checks against OpenAQ and Open-Meteo for Jaipur (uses `.env.local`) |
 | `npm run test:e2e` | Run E2E tests on desktop, tablet and mobile viewports (Playwright, production build on port 3100) |
 | `npm run check` | Typecheck, lint and unit tests |
 | `npm run db:rehearse` | Dry-run all migrations, seed and DB tests in one transaction, then roll back |
@@ -53,7 +54,10 @@ npx playwright install chromium
 | `/insights` | City insights | Placeholder |
 | `/settings` | Settings | Placeholder |
 | `/api/health` | Liveness check | Built |
-| `/api/air-quality`, `/api/forecast`, `/api/ai/chat`, `/api/reports` | Reserved | Return `501 not_implemented` |
+| `/api/air-quality?location=<slug>` | Latest measured and modelled data for an area | Built |
+| `/api/forecast?location=<slug>&hours=<n>` | Hourly modelled forecast | Built |
+| `/api/cron/ingest` | Provider ingestion (Bearer `CRON_SECRET`) | Built; not scheduled yet |
+| `/api/ai/chat`, `/api/reports` | Reserved | Return `501 not_implemented` |
 
 ## Project structure
 
@@ -70,7 +74,7 @@ tests/            unit/ · integration/ · e2e/
 docs/             architecture and development log
 ```
 
-See [docs/architecture.md](docs/architecture.md) and [docs/database.md](docs/database.md) for the design and [AGENTS.md](AGENTS.md) for the engineering rules all contributors and AI agents follow.
+See [docs/architecture.md](docs/architecture.md), [docs/database.md](docs/database.md) and [docs/air-quality-data.md](docs/air-quality-data.md) for the design and [AGENTS.md](AGENTS.md) for the engineering rules all contributors and AI agents follow.
 
 ## Environment variables
 

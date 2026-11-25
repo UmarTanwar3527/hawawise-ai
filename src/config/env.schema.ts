@@ -41,6 +41,8 @@ export const serverEnvSchema = z.object({
   GEMINI_API_KEY: optionalString,
   GOOGLE_AIR_QUALITY_API_KEY: optionalString,
   OPENAQ_API_KEY: optionalString,
+  /** Bearer token required by /api/cron/ingest. At least 32 characters. */
+  CRON_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
 });
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;

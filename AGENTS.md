@@ -56,6 +56,8 @@ Run `npm run check` before reporting work as done, and `npm run test:e2e` for UI
 4. Modelled grid estimates are never presented as station measurements. Forecasts are never presented as observations.
 5. Missing pollutants are shown as unavailable and are never estimated. When a provider fails, render an explicit unavailable state (`EmptyState` or `ErrorState`).
 6. Jaipur neighbourhoods in the UI are interface areas, not monitoring stations, unless a verified station is linked.
+7. Sources: OpenAQ stations (measured) are primary. Open-Meteo is modelled and forecast only, never used to calculate an AQI. A CPCB AQI calculated by Hawa AI must be labelled as calculated (`value_origin = 'hawa_calculated'`). See `docs/air-quality-data.md`.
+8. Providers are called only from the ingestion job (`/api/cron/ingest`), never per visitor request.
 
 ## AI rules
 

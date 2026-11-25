@@ -40,11 +40,18 @@ case "${1:-}" in
     # The test file opens its own transaction and ends with ROLLBACK, which also
     # rolls back the migrations and seed applied before it. On any error psql
     # exits and the open transaction is discarded.
+    # Only migrations not yet recorded in Supabase's migration history.
+    applied="$("${PSQL[@]}" -At -c "select coalesce(string_agg(version, ' '), '') from supabase_migrations.schema_migrations" 2>/dev/null || true)"
     script="$(mktemp)"
     trap 'rm -f "$script"' EXIT
     {
       echo "begin;"
-      for f in supabase/migrations/*.sql; do echo "\\i $f"; done
+      for f in supabase/migrations/*.sql; do
+        version="$(basename "$f" | cut -d_ -f1)"
+        if [[ " $applied " == *" $version "* ]]; then continue; fi
+        echo "\\echo '# rehearsing $(basename "$f")'"
+        echo "\\i $f"
+      done
       echo "\\i supabase/seed.sql"
       echo "\\i supabase/tests/database/rls.test.sql"
     } > "$script"

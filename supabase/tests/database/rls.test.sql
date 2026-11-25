@@ -37,8 +37,8 @@ values ('aaaaaaaa-0000-4000-8000-000000000004', 'aaaaaaaa-0000-4000-8000-0000000
         'aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000003',
         'modelled', '2026-01-01 10:00:00+00');
 
-insert into aqi_index_values (reading_id, aqi_scale, aqi_value)
-values ('aaaaaaaa-0000-4000-8000-000000000004', 'ind_cpcb', 1);
+insert into aqi_index_values (reading_id, aqi_scale, aqi_value, value_origin)
+values ('aaaaaaaa-0000-4000-8000-000000000004', 'ind_cpcb', 1, 'provider_reported');
 
 -- User A's private data
 insert into civic_reports (id, user_id, category, description)
@@ -118,15 +118,15 @@ select throws_ok(
 );
 
 select throws_ok(
-  $$insert into aqi_index_values (reading_id, aqi_scale, aqi_value)
-    values ('aaaaaaaa-0000-4000-8000-000000000004', 'us_epa', 10)$$,
+  $$insert into aqi_index_values (reading_id, aqi_scale, aqi_value, value_origin)
+    values ('aaaaaaaa-0000-4000-8000-000000000004', 'us_epa', 10, 'provider_reported')$$,
   '23514', null,
   'unknown AQI scale codes are rejected'
 );
 
 select throws_ok(
-  $$insert into aqi_index_values (reading_id, aqi_scale, aqi_value)
-    values ('aaaaaaaa-0000-4000-8000-000000000004', 'ind_cpcb', 2)$$,
+  $$insert into aqi_index_values (reading_id, aqi_scale, aqi_value, value_origin)
+    values ('aaaaaaaa-0000-4000-8000-000000000004', 'ind_cpcb', 2, 'provider_reported')$$,
   '23505', null,
   'a reading holds at most one value per AQI scale'
 );
@@ -150,6 +150,20 @@ select throws_ok(
             '22222222-2222-4222-8222-222222222222/aaaaaaaa-0000-4000-8000-000000000005/x.jpg', 'image/jpeg', 1)$$,
   '23514', null,
   'report media paths must start with the owner and report ids'
+);
+
+select throws_ok(
+  $$insert into aqi_index_values (reading_id, aqi_scale, aqi_value)
+    values ('aaaaaaaa-0000-4000-8000-000000000004', 'uaqi', 10)$$,
+  '23502', null,
+  'AQI values must state whether they were provider-reported or calculated'
+);
+
+select throws_ok(
+  $$insert into aqi_index_values (reading_id, aqi_scale, aqi_value, value_origin)
+    values ('aaaaaaaa-0000-4000-8000-000000000004', 'uaqi', 10, 'hawa_calculated')$$,
+  '23514', null,
+  'calculated AQI values must name their calculation method'
 );
 
 select ok(
@@ -179,6 +193,8 @@ select throws_ok($$select 1 from user_profiles$$, '42501', null,
   'anon cannot read profiles');
 select throws_ok($$select 1 from ai_messages$$, '42501', null,
   'anon cannot read AI messages');
+select throws_ok($$select 1 from provider_sync_logs$$, '42501', null,
+  'anon cannot read provider sync logs');
 select throws_ok(
   $$insert into locations (slug, name, latitude, longitude, location_type, coordinate_source)
     values ('anon-area', 'x', 1, 1, 'neighbourhood', 'x')$$,
@@ -210,6 +226,8 @@ select is_empty($$select 1 from storage.objects where bucket_id = 'report-media'
   'B cannot see A''s stored images');
 select throws_ok($$select 1 from provider_payloads$$, '42501', null,
   'signed-in users cannot read raw provider payloads');
+select throws_ok($$select 1 from provider_sync_logs$$, '42501', null,
+  'signed-in users cannot read provider sync logs');
 
 select throws_ok(
   $$insert into civic_reports (user_id, category) values ('11111111-1111-4111-8111-111111111111', 'other')$$,

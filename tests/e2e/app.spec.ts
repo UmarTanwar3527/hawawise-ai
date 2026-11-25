@@ -93,13 +93,51 @@ test.describe("API", () => {
   });
 
   test("reserved endpoints return 501 instead of placeholder data", async ({ request }) => {
-    for (const path of ["/api/air-quality", "/api/forecast", "/api/reports"]) {
-      const response = await request.get(path);
-      expect(response.status(), path).toBe(501);
-      expect((await response.json()).error.code).toBe("not_implemented");
-    }
+    const reports = await request.get("/api/reports");
+    expect(reports.status()).toBe(501);
+    expect((await reports.json()).error.code).toBe("not_implemented");
     const chat = await request.post("/api/ai/chat", { data: {} });
     expect(chat.status()).toBe(501);
+  });
+
+  test("air-quality API validates input and labels provenance", async ({ request }) => {
+    expect((await request.get("/api/air-quality?location=NOT%20VALID")).status()).toBe(400);
+    expect((await request.get("/api/air-quality?location=does-not-exist")).status()).toBe(404);
+
+    const response = await request.get("/api/air-quality?location=jaipur-city-centre");
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.location.slug).toBe("jaipur-city-centre");
+    expect(Array.isArray(body.unavailable)).toBe(true);
+    if (body.measured) {
+      expect(body.measured.provenance).toBe("measured");
+      expect(body.measured.observedAt).toBeTruthy();
+      expect(body.measured.fetchedAt).toBeTruthy();
+      if (body.measured.aqi) {
+        expect(body.measured.aqi.scale).toBe("ind_cpcb");
+        expect(body.measured.aqi.origin).toBe("hawa_calculated");
+      }
+    }
+    if (body.modelled) expect(body.modelled.provenance).toBe("modelled");
+  });
+
+  test("forecast API returns future hours only", async ({ request }) => {
+    expect((await request.get("/api/forecast?location=mansarovar&hours=999")).status()).toBe(400);
+    const response = await request.get("/api/forecast?location=mansarovar&hours=24");
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.provenance).toBe("forecast");
+    for (const hour of body.hours) {
+      expect(Date.parse(hour.forecastFor)).toBeGreaterThan(Date.now() - 60_000);
+    }
+  });
+
+  test("ingestion endpoint rejects requests without the cron secret", async ({ request }) => {
+    expect((await request.get("/api/cron/ingest")).status()).toBe(401);
+    const wrong = await request.get("/api/cron/ingest", {
+      headers: { Authorization: "Bearer not-the-secret" },
+    });
+    expect(wrong.status()).toBe(401);
   });
 
   test("responses include baseline security headers", async ({ request }) => {

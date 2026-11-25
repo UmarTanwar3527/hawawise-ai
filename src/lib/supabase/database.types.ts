@@ -73,14 +73,14 @@ isOneToOne: false
                   ]
                 },"aqi_index_values": {
                   Row: {
-                    "aqi_category": string | null,"aqi_scale": string,"aqi_value": number,"dominant_pollutant": string | null,"forecast_id": string | null,"id": string,"reading_id": string | null
+                    "aqi_category": string | null,"aqi_scale": string,"aqi_value": number,"calculation_details": Json | null,"calculation_method": string | null,"dominant_pollutant": string | null,"forecast_id": string | null,"id": string,"is_lower_bound": boolean,"reading_id": string | null,"value_origin": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "aqi_category"?: string | null,"aqi_scale": string,"aqi_value": number,"dominant_pollutant"?: string | null,"forecast_id"?: string | null,"id"?: string,"reading_id"?: string | null
+                    "aqi_category"?: string | null,"aqi_scale": string,"aqi_value": number,"calculation_details"?: Json | null,"calculation_method"?: string | null,"dominant_pollutant"?: string | null,"forecast_id"?: string | null,"id"?: string,"is_lower_bound"?: boolean,"reading_id"?: string | null,"value_origin": string
                   }
                   Update: {
-                    "aqi_category"?: string | null,"aqi_scale"?: string,"aqi_value"?: number,"dominant_pollutant"?: string | null,"forecast_id"?: string | null,"id"?: string,"reading_id"?: string | null
+                    "aqi_category"?: string | null,"aqi_scale"?: string,"aqi_value"?: number,"calculation_details"?: Json | null,"calculation_method"?: string | null,"dominant_pollutant"?: string | null,"forecast_id"?: string | null,"id"?: string,"is_lower_bound"?: boolean,"reading_id"?: string | null,"value_origin"?: string
                   }
                   Relationships: [
                     {
@@ -165,14 +165,14 @@ isOneToOne: false
                   ]
                 },"locations": {
                   Row: {
-                    "city": string,"coordinate_source": string,"country_code": string,"created_at": string,"external_ref": string | null,"geom": unknown,"id": string,"is_active": boolean,"latitude": number,"location_type": string,"longitude": number,"name": string,"slug": string,"source_id": string | null,"state": string,"updated_at": string
+                    "city": string,"coordinate_source": string,"country_code": string,"created_at": string,"external_ref": string | null,"geom": unknown,"id": string,"is_active": boolean,"latitude": number,"location_type": string,"longitude": number,"metadata": NonNullable<Json>,"name": string,"slug": string,"source_id": string | null,"state": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "city"?: string,"coordinate_source": string,"country_code"?: string,"created_at"?: string,"external_ref"?: string | null,"geom"?: never,"id"?: string,"is_active"?: boolean,"latitude": number,"location_type": string,"longitude": number,"name": string,"slug": string,"source_id"?: string | null,"state"?: string,"updated_at"?: string
+                    "city"?: string,"coordinate_source": string,"country_code"?: string,"created_at"?: string,"external_ref"?: string | null,"geom"?: never,"id"?: string,"is_active"?: boolean,"latitude": number,"location_type": string,"longitude": number,"metadata"?: NonNullable<Json>,"name": string,"slug": string,"source_id"?: string | null,"state"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "city"?: string,"coordinate_source"?: string,"country_code"?: string,"created_at"?: string,"external_ref"?: string | null,"geom"?: never,"id"?: string,"is_active"?: boolean,"latitude"?: number,"location_type"?: string,"longitude"?: number,"name"?: string,"slug"?: string,"source_id"?: string | null,"state"?: string,"updated_at"?: string
+                    "city"?: string,"coordinate_source"?: string,"country_code"?: string,"created_at"?: string,"external_ref"?: string | null,"geom"?: never,"id"?: string,"is_active"?: boolean,"latitude"?: number,"location_type"?: string,"longitude"?: number,"metadata"?: NonNullable<Json>,"name"?: string,"slug"?: string,"source_id"?: string | null,"state"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -185,14 +185,14 @@ isOneToOne: false
                   ]
                 },"pollutant_values": {
                   Row: {
-                    "averaging_period": string | null,"forecast_id": string | null,"id": string,"pollutant": string,"reading_id": string | null,"unit": string,"value": number
+                    "averaging_period": string | null,"coverage_percent": number | null,"forecast_id": string | null,"id": string,"pollutant": string,"reading_id": string | null,"unit": string,"value": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "averaging_period"?: string | null,"forecast_id"?: string | null,"id"?: string,"pollutant": string,"reading_id"?: string | null,"unit": string,"value": number
+                    "averaging_period"?: string | null,"coverage_percent"?: number | null,"forecast_id"?: string | null,"id"?: string,"pollutant": string,"reading_id"?: string | null,"unit": string,"value": number
                   }
                   Update: {
-                    "averaging_period"?: string | null,"forecast_id"?: string | null,"id"?: string,"pollutant"?: string,"reading_id"?: string | null,"unit"?: string,"value"?: number
+                    "averaging_period"?: string | null,"coverage_percent"?: number | null,"forecast_id"?: string | null,"id"?: string,"pollutant"?: string,"reading_id"?: string | null,"unit"?: string,"value"?: number
                   }
                   Relationships: [
                     {
@@ -255,6 +255,26 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "provider_payloads_source_id_fkey"
+      columns: ["source_id"]
+isOneToOne: false
+      referencedRelation: "data_sources"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"provider_sync_logs": {
+                  Row: {
+                    "details": NonNullable<Json>,"finished_at": string | null,"id": string,"records_written": number,"source_id": string,"started_at": string,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "details"?: NonNullable<Json>,"finished_at"?: string | null,"id"?: string,"records_written"?: number,"source_id": string,"started_at"?: string,"status"?: string
+                  }
+                  Update: {
+                    "details"?: NonNullable<Json>,"finished_at"?: string | null,"id"?: string,"records_written"?: number,"source_id"?: string,"started_at"?: string,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "provider_sync_logs_source_id_fkey"
       columns: ["source_id"]
 isOneToOne: false
       referencedRelation: "data_sources"

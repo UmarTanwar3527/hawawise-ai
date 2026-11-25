@@ -10,8 +10,11 @@
 
 insert into public.data_sources (provider, source_type, display_name, website_url, is_active)
 values
+  -- Deferred: requires a Google Cloud billing account.
   ('google_air_quality', 'modelled_grid', 'Google Air Quality API',
-   'https://developers.google.com/maps/documentation/air-quality', true),
+   'https://developers.google.com/maps/documentation/air-quality', false),
+  ('open_meteo', 'modelled_grid', 'Open-Meteo Air Quality API',
+   'https://open-meteo.com', true),
   ('openaq', 'station_network', 'OpenAQ',
    'https://openaq.org', true),
   -- Reference only until an authorised CPCB data-access method is confirmed.
