@@ -50,14 +50,14 @@ const integrityRules: { icon: IconName; title: string; body: string }[] = [
   },
 ];
 
-const plannedSources: { name: string; role: string }[] = [
+const dataSources: { name: string; role: string }[] = [
   {
-    name: "Google Air Quality API",
-    role: "Primary source. Modelled conditions on an approximately 500 m grid, plus forecasts.",
+    name: "OpenAQ — CPCB/RSPCB monitoring stations",
+    role: "Primary source. Hourly measurements from six continuous monitoring stations in Jaipur. Hawa AI calculates the CPCB AQI from them and labels it as calculated.",
   },
   {
-    name: "OpenAQ",
-    role: "Station-level observations where available, for comparison and history.",
+    name: "Open-Meteo Air Quality",
+    role: "Model estimates and forecasts. Always labelled as modelled, and never used to calculate an AQI.",
   },
   {
     name: "CPCB National AQI",
@@ -110,18 +110,16 @@ export default function LandingPage() {
                   {formatCoordinates(centre.latitude, centre.longitude)}
                 </p>
               </div>
-              <Badge tone="neutral" dot>
-                Awaiting data
-              </Badge>
+              <ProvenanceBadge kind="measured" />
             </div>
             <div className="flex flex-col gap-5 p-5">
               <div className="rounded-xl border border-dashed border-line-strong bg-canvas p-5 text-center">
                 <p className="text-sm font-medium text-ink">
-                  No verified reading yet
+                  Live station data on the dashboard
                 </p>
                 <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-ink-subtle">
-                  Live values will appear once provider integrations are
-                  verified for Jaipur.
+                  Hourly measurements from Jaipur&apos;s monitoring stations,
+                  with the source and time shown for every value.
                 </p>
               </div>
               <AqiScaleLegend />
@@ -221,11 +219,11 @@ export default function LandingPage() {
           </div>
           <div className="rounded-card border border-white/10 bg-navy-soft p-6">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="font-semibold">Planned data sources</h3>
-              <Badge tone="inverse">Integration in progress</Badge>
+              <h3 className="font-semibold">Data sources</h3>
+              <Badge tone="inverse">Jaipur pilot</Badge>
             </div>
             <ul className="mt-6 flex flex-col divide-y divide-white/10">
-              {plannedSources.map((source) => (
+              {dataSources.map((source) => (
                 <li key={source.name} className="py-4 first:pt-0 last:pb-0">
                   <p className="font-medium">{source.name}</p>
                   <p className="mt-1 text-sm leading-6 text-slate-300">{source.role}</p>

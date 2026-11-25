@@ -2,7 +2,7 @@
 
 Evidence-grounded urban air-quality intelligence, piloting in **Jaipur, Rajasthan**.
 
-> **Status: Day 1, steps 1–3.** App shell, design system and tests are in place. The Supabase database is live with RLS (57 pgTAP tests). Real Jaipur air-quality data is ingested from **OpenAQ** (CPCB/RSPCB stations, measured) and **Open-Meteo** (modelled and forecast), with a Hawa AI-calculated CPCB AQI, served by `/api/air-quality` and `/api/forecast`. The dashboard UI and the AI assistant are **not connected yet**.
+> **Status: Day 1, steps 1–4.** The Jaipur air dashboard shows real data: the nearest CPCB/RSPCB station's measurements (via OpenAQ) with a Hawa AI-calculated CPCB AQI, a clearly secondary Open-Meteo model estimate, a 24-hour trend, a four-day modelled outlook and a station map. Supabase holds the data, with RLS (57 pgTAP tests). Ingestion is not scheduled yet, and the AI assistant is **not connected**.
 
 ## Stack
 
@@ -46,7 +46,7 @@ npx playwright install chromium
 | Route | Module | State |
 | --- | --- | --- |
 | `/` | Landing page | Built |
-| `/dashboard` | Air dashboard | Layout with "not connected" panels |
+| `/dashboard?location=<slug>` | Air dashboard | Built on stored provider data |
 | `/map` | Pollution map | Placeholder |
 | `/guardian` | Air Guardian (AI) | Placeholder |
 | `/planner` | Exposure planner | Placeholder |

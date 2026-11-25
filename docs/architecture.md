@@ -29,6 +29,7 @@ Supabase: Postgres · PostGIS · Auth · Storage · RLS
 | Design tokens and UI primitives (`Button`, `Card`, `Badge`, `EmptyState`, `ErrorState`, `Skeleton`, `PageHeader`) | Built |
 | Loading (`(app)/loading.tsx`), error (`(app)/error.tsx`) and not-found states | Built |
 | CPCB AQI category scale and provenance labels | Built and unit-tested |
+| Dashboard (`/dashboard`): station-led AQI, pollutants, sources, modelled estimate, 24 h trend, 4-day outlook, station map | Built; data cached for 5 min and refreshed by ingestion (`revalidateTag`) |
 | Environment validation (`src/config/env.schema.ts`) | Built and unit-tested |
 | `/api/health` | Built |
 | Supabase schema, RLS, storage, Jaipur locations ([database.md](database.md)) | Applied; 53 pgTAP tests passing |
@@ -46,6 +47,6 @@ Every value shown carries: provider, AQI scale code (`ind_cpcb` or `uaqi`), obse
 
 ## Next steps
 
-1. **Dashboard:** replace the "not connected" panels with real data, keeping explicit unavailable states.
-2. **Security hardening:** add a Content-Security-Policy once the Maps and Supabase origins are known, plus rate limiting on API routes.
-3. **Scheduling:** run `/api/cron/ingest` hourly after deployment.
+1. **Security hardening:** add a Content-Security-Policy once the Maps and Supabase origins are known, plus rate limiting on API routes.
+2. **Scheduling:** run `/api/cron/ingest` hourly after deployment.
+3. **AI layer:** Air Guardian and the daily summary, generated only from the stored data.

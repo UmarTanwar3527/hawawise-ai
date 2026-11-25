@@ -17,7 +17,7 @@ function SidebarFooter() {
         {siteConfig.pilotCity.name} pilot
       </p>
       <p className="mt-1.5 text-xs leading-5 text-slate-300">
-        Development preview. Environmental data sources are not connected yet.
+        Station data from CPCB/RSPCB monitors via OpenAQ. Model data from Open-Meteo.
       </p>
     </div>
   );
@@ -91,12 +91,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </p>
 
           <div className="ml-auto flex items-center gap-2">
-            {/* Visibility lives on a wrapper: Badge's own display class would win. */}
-            <span className="hidden sm:block">
-              <Badge tone="neutral" dot>
-                Live data not connected
-              </Badge>
-            </span>
             <Badge tone="placeholder">Dev preview</Badge>
           </div>
         </div>

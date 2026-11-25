@@ -1,4 +1,7 @@
+import { revalidateTag } from "next/cache";
+
 import { getServerEnv } from "@/config/env";
+import { AIR_QUALITY_CACHE_TAG } from "@/features/air-quality/services/dashboard-data";
 import { jsonError } from "@/lib/http/api-response";
 import { isValidBearer } from "@/lib/security/bearer";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -32,6 +35,8 @@ export async function GET(request: Request) {
   const anySucceeded = summary.providers.some(
     (provider) => provider.status === "success" || provider.status === "partial",
   );
+  // Serve the previous data until the next visit regenerates it.
+  if (anySucceeded) revalidateTag(AIR_QUALITY_CACHE_TAG, "max");
   return Response.json(summary, {
     status: anySucceeded ? 200 : 502,
     headers: { "Cache-Control": "no-store" },

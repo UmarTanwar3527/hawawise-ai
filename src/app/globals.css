@@ -31,6 +31,11 @@
   --color-poor: #ea580c;
   --color-severe: #dc2626;
 
+  /* Chart series (validated categorical slots 1–2; see dataviz guidance) */
+  --color-series-1: #2a78d6;
+  --color-series-2: #eb6834;
+  --color-grid: #e9edf3;
+
   /* Shape and depth */
   --radius-card: 1rem;
   --shadow-card:

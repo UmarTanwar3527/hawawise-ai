@@ -4,6 +4,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/supabase/database.types";
 
+import {
+  MEASURED_STALE_AFTER_HOURS,
+  MODELLED_STALE_AFTER_HOURS,
+  NEAREST_STATION_MAX_KM,
+} from "../constants";
+
 import type {
   AqiScaleCode,
   AqiValueOrigin,
@@ -15,14 +21,7 @@ import type {
 type Db = SupabaseClient<Database>;
 
 const HOUR = 3_600_000;
-/**
- * Jaipur station data reached OpenAQ about 2.5 h after the hour ended
- * (observed 2026-11-25), so measurements older than 4 h are flagged stale.
- */
-export const MEASURED_STALE_AFTER_HOURS = 4;
-export const MODELLED_STALE_AFTER_HOURS = 3;
-/** Only stations this close to an area are offered as its "nearest station". */
-export const NEAREST_STATION_MAX_KM = 10;
+
 
 export type PollutantReading = {
   pollutant: PollutantCode;
@@ -63,6 +62,7 @@ export type AreaAirQuality = {
         provenance: "measured";
         provider: "OpenAQ";
         station: {
+          id: string;
           name: string;
           distanceKm: number;
           network: string | null;
@@ -205,6 +205,7 @@ export async function getAreaAirQuality(
         provenance: "measured",
         provider: "OpenAQ",
         station: {
+          id: station.id,
           name: station.name,
           distanceKm: Math.round(distanceKm * 10) / 10,
           network: metadata.network ?? null,
@@ -325,4 +326,121 @@ export async function getAreaForecast(
     })),
     unavailable: data.length === 0 ? ["The stored forecast has no future hours."] : [],
   };
+}
+
+export type AreaSummary = {
+  slug: string;
+  name: string;
+  type: string;
+  latitude: number;
+  longitude: number;
+};
+
+/** Areas a visitor can choose (city centre and neighbourhoods). */
+export async function getAreas(db: Db): Promise<AreaSummary[]> {
+  const { data, error } = await db
+    .from("locations")
+    .select("slug, name, location_type, latitude, longitude")
+    .in("location_type", ["city_centre", "neighbourhood"])
+    .order("location_type")
+    .order("name");
+  if (error) throw error;
+  return data.map((row) => ({
+    slug: row.slug,
+    name: row.name,
+    type: row.location_type,
+    latitude: row.latitude,
+    longitude: row.longitude,
+  }));
+}
+
+export type StationOverview = {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  observedAt: string | null;
+  aqi: { value: number; isLowerBound: boolean; category: string | null } | null;
+};
+
+/** Every active station with its latest calculated CPCB AQI (last 12 hours). */
+export async function getStationsOverview(db: Db, now: Date = new Date()): Promise<StationOverview[]> {
+  const [{ data: stations, error: stationError }, sourceId] = await Promise.all([
+    db
+      .from("locations")
+      .select("id, name, latitude, longitude")
+      .eq("location_type", "monitoring_station")
+      .order("name"),
+    getSourceId(db, "openaq"),
+  ]);
+  if (stationError) throw stationError;
+  if (!sourceId || stations.length === 0) return [];
+
+  const { data: readings, error } = await db
+    .from("aqi_readings")
+    .select("location_id, observed_at, aqi_index_values (aqi_scale, aqi_value, is_lower_bound, aqi_category)")
+    .eq("source_id", sourceId)
+    .eq("data_kind", "measured")
+    .in("location_id", stations.map((station) => station.id))
+    .gte("observed_at", new Date(now.getTime() - 12 * HOUR).toISOString())
+    .order("observed_at", { ascending: false });
+  if (error) throw error;
+
+  // Latest reading per station that has a CPCB value.
+  const latest = new Map<string, (typeof readings)[number]>();
+  for (const reading of readings) {
+    if (latest.has(reading.location_id)) continue;
+    if (reading.aqi_index_values.some((row) => row.aqi_scale === "ind_cpcb")) {
+      latest.set(reading.location_id, reading);
+    }
+  }
+
+  return stations.map((station) => {
+    const reading = latest.get(station.id);
+    const aqi = reading?.aqi_index_values.find((row) => row.aqi_scale === "ind_cpcb");
+    return {
+      id: station.id,
+      name: station.name,
+      latitude: station.latitude,
+      longitude: station.longitude,
+      observedAt: reading?.observed_at ?? null,
+      aqi: aqi
+        ? { value: aqi.aqi_value, isLowerBound: aqi.is_lower_bound, category: aqi.aqi_category }
+        : null,
+    };
+  });
+}
+
+export type StationHistoryPoint = {
+  observedAt: string;
+  values: Partial<Record<PollutantCode, { value: number; unit: PollutantUnit }>>;
+};
+
+/** Hourly station measurements for the last `hours` hours, oldest first. */
+export async function getStationHistory(
+  db: Db,
+  stationId: string,
+  hours = 24,
+  now: Date = new Date(),
+): Promise<StationHistoryPoint[]> {
+  const sourceId = await getSourceId(db, "openaq");
+  if (!sourceId) return [];
+  const { data, error } = await db
+    .from("aqi_readings")
+    .select("observed_at, pollutant_values (pollutant, value, unit)")
+    .eq("location_id", stationId)
+    .eq("source_id", sourceId)
+    .eq("data_kind", "measured")
+    .gte("observed_at", new Date(now.getTime() - hours * HOUR).toISOString())
+    .order("observed_at");
+  if (error) throw error;
+  return data.map((row) => ({
+    observedAt: row.observed_at,
+    values: Object.fromEntries(
+      row.pollutant_values.map((value) => [
+        value.pollutant,
+        { value: value.value, unit: value.unit as PollutantUnit },
+      ]),
+    ),
+  }));
 }

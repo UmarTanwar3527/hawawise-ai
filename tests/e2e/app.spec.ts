@@ -43,10 +43,46 @@ test("landing call to action opens the dashboard", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Air dashboard" })).toBeVisible();
 });
 
-test("dashboard does not present fabricated readings", async ({ page }) => {
-  await page.goto("/dashboard");
-  await expect(page.getByText("No verified reading yet")).toBeVisible();
-  await expect(page.getByText("Live data not connected").first()).toBeAttached();
+test.describe("dashboard", () => {
+  test("labels provenance and discloses the calculated AQI", async ({ page }) => {
+    await page.goto("/dashboard?location=mansarovar");
+    await expect(page.getByRole("heading", { name: "Current AQI" })).toBeVisible();
+    // Either a measured AQI with its disclosure, or an explicit unavailable state.
+    const disclosure = page.getByText("Calculated by Hawa AI from station measurements");
+    const unavailable = page.getByText(/AQI not available|No station measurement available/);
+    await expect(disclosure.or(unavailable).first()).toBeVisible();
+    await expect(page.getByText("Model estimate", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sources and freshness" })).toBeVisible();
+  });
+
+  test("area selector switches the area", async ({ page }) => {
+    await page.goto("/dashboard");
+    const selector = page.getByRole("combobox", { name: "Area" });
+    await selector.selectOption("sitapura");
+    await expect(page).toHaveURL(/location=sitapura/);
+    await expect(selector).toHaveValue("sitapura");
+    await expect(page.getByText("Open-Meteo, for Sitapura")).toBeVisible();
+  });
+
+  test("unknown areas show the not-found page and are not indexed", async ({ page }) => {
+    // The page shell streams before the area is checked, so the HTTP status
+    // stays 200; the not-found UI and a noindex directive are what matter.
+    await page.goto("/dashboard?location=atlantis");
+    await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
+    await expect(page.locator('meta[name="robots"][content*="noindex"]')).not.toHaveCount(0);
+  });
+
+  test("hourly chart offers a data table and keyboard reading", async ({ page }) => {
+    await page.goto("/dashboard?location=mansarovar");
+    await expect(page.getByRole("heading", { name: "Hourly trend" })).toBeVisible();
+    const chart = page.getByRole("group", { name: /Hourly PM2.5 and PM10/ });
+    test.skip((await chart.count()) === 0, "No hourly data stored yet");
+    await chart.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.getByText(/^Hour ending/).first()).toBeVisible();
+    await page.getByText("Show data table").click();
+    await expect(page.getByRole("columnheader", { name: "PM2.5 (µg/m³)" })).toBeVisible();
+  });
 });
 
 test("primary navigation marks the current page", async ({ page }, testInfo) => {
