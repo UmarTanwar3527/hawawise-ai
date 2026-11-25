@@ -68,6 +68,8 @@ Written only by the server (service role): environmental data, raw payloads, ass
 
 **Anonymous reports** (migrations 009–010): written only by the server (`submission_channel = 'anonymous'`, `user_id` null, photo under `anonymous/<report id>/` in private storage). The insert trigger requires a pseudonymous `submitter_hash`. It allows 3 per hour and 10 per day per submitter and 300 per day in total, and raises `P0429` beyond that. Locations must be in the Jaipur area. The retention step in ingestion clears `submitter_hash` after 48 hours. `report_media.sha256` blocks duplicate photos.
 
+**Hourly jobs** (migration 011): `pg_cron` runs `private.trigger_hawa_job()` at :20 (ingest) and :30 (brief). The function can call only those two endpoints, reads the URL and secret from Vault, and cannot be executed by `anon` or `authenticated` (tested).
+
 Signed-in users can write some rows directly through the Data API, so per-user quotas are enforced in the database (migration 007): 20 civic reports, 50 conversations and 200 user messages per 24 hours, and 5 media rows and 5 stored images per report. Exceeding a quota raises SQLSTATE `P0429`. Storage deletes are only allowed while the report is still `submitted`.
 
 ## Adding a table

@@ -9,45 +9,43 @@ Browser (Next.js UI)
    │  HTTPS
    ▼
 Next.js server (route handlers, server components)
-   ├── AQI service ──────────► OpenAQ stations (primary), Open-Meteo model; Google deferred
-   ├── AI orchestrator ──────► Gemini (tool calling, vision)
-   ├── Location service ─────► Supabase / PostGIS
-   ├── Vision service ───────► Gemini vision
-   ├── Safety layer (deterministic validation)
-   └── Alert service
+   ├── Air-quality services ──► stored OpenAQ station data (measured) and Open-Meteo data (modelled, forecast)
+   ├── Air Guardian ──────────► Gemini function calling over allowlisted data tools
+   ├── Explanations ──────────► Gemini (planner, insights, daily brief), grounding-checked
+   ├── Photo reporter ────────► Gemini vision; private Supabase Storage
+   └── Ingestion (/api/cron/*) ► OpenAQ, Open-Meteo (scheduled, never per visitor)
    ▼
-Supabase: Postgres · PostGIS · Auth · Storage · RLS
+Supabase: Postgres · PostGIS · Storage · RLS · pg_cron (hourly jobs) · Vault (job secret)
 ```
 
 **Hard boundary:** the browser never calls Gemini or protected environmental APIs. Privileged calls run on the server, so keys stay protected and AI tool requests can be validated.
 
-## Current state (foundation)
+## Current state
 
 | Area | Status |
 | --- | --- |
-| App shell, navigation, routes | Built |
-| Design tokens and UI primitives (`Button`, `Card`, `Badge`, `EmptyState`, `ErrorState`, `Skeleton`, `PageHeader`) | Built |
-| Loading (`(app)/loading.tsx`), error (`(app)/error.tsx`) and not-found states | Built |
-| CPCB AQI category scale and provenance labels | Built and unit-tested |
-| Dashboard (`/dashboard`): station-led AQI, pollutants, sources, modelled estimate, 24 h trend, 4-day outlook, station map | Built; data cached for 5 min and refreshed by ingestion (`revalidateTag`) |
-| Environment validation (`src/config/env.schema.ts`) | Built and unit-tested |
-| `/api/health` | Built |
-| Supabase schema, RLS, storage, Jaipur locations ([database.md](database.md)) | Applied; 53 pgTAP tests passing |
-| Supabase clients (browser, server, admin) with generated types | Built |
-| OpenAQ and Open-Meteo adapters, ingestion, CPCB AQI calculation, `/api/air-quality`, `/api/forecast` ([air-quality-data.md](air-quality-data.md)) | Built; ingestion not scheduled yet |
-| Gemini | Air Guardian, Daily Brief, planner explanations and civic photo analysis (server-only; see the feature docs) |
-| Maps, auth | Leaflet + OpenStreetMap (no Google Maps); auth set aside in a git stash |
+| App shell, navigation, landing page, guided demo (`/demo`) with live readiness checks | Built |
+| Design tokens, UI primitives, loading, error and not-found states | Built |
+| Supabase schema, RLS, storage, Jaipur locations ([database.md](database.md)) | Applied; 99 pgTAP security and integrity tests passing |
+| OpenAQ and Open-Meteo ingestion, CPCB AQI calculation ([air-quality-data.md](air-quality-data.md)) | Built; scheduled hourly inside Supabase (`pg_cron` + `pg_net`), manual GitHub Actions workflow as backup |
+| Dashboard, pollution map (Leaflet + OpenStreetMap) | Built |
+| Air Guardian and AI daily brief ([ai-guardian.md](ai-guardian.md)) | Built |
+| Exposure planner ([exposure-planner.md](exposure-planner.md)) | Built |
+| AI photo reporter, anonymous civic reports ([civic-reports.md](civic-reports.md)) | Built |
+| City insights ([city-insights.md](city-insights.md)) | Built |
+| Tests | 147 unit (Vitest, Gemini mocked), 141 end-to-end on 3 viewports (Playwright), 99 database (pgTAP) |
+| Accounts | Deferred: not needed for the pilot. Settings is a labelled placeholder outside the navigation |
 
 ## Rendering
 
-`cacheComponents` and `partialPrefetching` are enabled. Product pages are currently fully static. As data arrives, data-dependent sections should be wrapped in `<Suspense>` with skeleton fallbacks so the shell stays instant. Use `"use cache"` with an explicit `cacheLife` for provider data, matched to provider refresh rates.
+`cacheComponents` and `partialPrefetching` are enabled. Page shells are prerendered; data-dependent sections render inside `<Suspense>` with skeleton fallbacks. Stored data is read through `"use cache"` functions with explicit `cacheLife` and the `air-quality` / `civic-reports` tags, which ingestion and report submission revalidate. Freshness and staleness are computed per request.
 
 ## Data provenance model
 
-Every value shown carries: provider, AQI scale code (`ind_cpcb` or `uaqi`), observation time, fetch time and provenance (`measured`, `modelled` or `forecast`). See `src/features/air-quality/types/aqi.ts`. Observations and forecasts are stored in separate tables (next step).
+Every value shown carries: provider, AQI scale code (`ind_cpcb` or `uaqi`), observation time, fetch time and provenance (`measured`, `modelled` or `forecast`). See `src/features/air-quality/types/aqi.ts`. Observations and forecasts are stored in separate tables.
 
 ## Next steps
 
-1. **Security hardening:** add a Content-Security-Policy once the Maps and Supabase origins are known, plus rate limiting on API routes.
-2. **Scheduling:** run `/api/cron/ingest` hourly after deployment.
-3. **Authentication** (set aside in a git stash) to enable conversation persistence, Settings and signed-in report history. Civic reports work anonymously (see `docs/civic-reports.md`).
+1. **Accounts** to save conversations and report history, and a moderation tool for community reports.
+2. **Security:** a Content-Security-Policy, and a shared store for AI rate limits (today they are per server instance; the database enforces report limits).
+3. **Alerts** when conditions change, and further cities with enough verified stations.

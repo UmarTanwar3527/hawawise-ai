@@ -1,15 +1,16 @@
-name: Hourly air-quality ingestion
+name: Manual air-quality ingestion
 
-# Calls the deployed /api/cron/ingest endpoint. Configure in the repository:
-#   Settings → Secrets and variables → Actions
+# Manual backup for the hourly schedule. The schedule itself runs inside
+# Supabase (pg_cron + pg_net, migration 20261126110000), because GitHub
+# Actions schedules are best-effort and did not fire reliably.
+#
+# Calls the deployed /api/cron/ingest and /api/cron/brief endpoints.
+# Configure in the repository: Settings → Secrets and variables → Actions
 #     Secret   CRON_SECRET     same value as the deployment's CRON_SECRET
 #     Variable HAWA_BASE_URL   e.g. https://hawa-ai.vercel.app (no trailing slash)
 # The job is skipped until HAWA_BASE_URL is set.
 
 on:
-  schedule:
-    # Minute 20: Jaipur station hours reach OpenAQ with a lag, so avoid :00.
-    - cron: "20 * * * *"
   workflow_dispatch:
 
 permissions:

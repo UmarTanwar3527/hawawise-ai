@@ -503,6 +503,23 @@ select throws_ok(
   'P0429', null,
   'the 4th anonymous report within an hour is refused');
 
+------------------------------------------------------------------------------
+-- Hourly job schedule (migration 011)
+------------------------------------------------------------------------------
+
+select results_eq(
+  $$select jobname::text, schedule::text from cron.job where jobname like 'hawa-%' order by jobname$$,
+  $$values ('hawa-brief', '30 * * * *'), ('hawa-ingest', '20 * * * *')$$,
+  'ingestion runs at :20 and the brief at :30 every hour');
+select ok(
+  not has_function_privilege('anon', 'private.trigger_hawa_job(text)', 'execute')
+  and not has_function_privilege('authenticated', 'private.trigger_hawa_job(text)', 'execute'),
+  'client roles cannot trigger scheduled jobs');
+select throws_ok(
+  $$select private.trigger_hawa_job('/api/ai/chat')$$,
+  '22023', null,
+  'the job function only calls the two cron endpoints');
+
 select * from finish();
 
 rollback;

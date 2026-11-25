@@ -16,6 +16,9 @@
     "db:push": "scripts/db.sh push",
     "db:test": "scripts/db.sh test",
     "db:types": "scripts/db.sh types",
+    "db:schedule": "scripts/db.sh schedule",
+    "db:schedule-status": "scripts/db.sh schedule-status",
+    "db:schedule-run": "scripts/db.sh schedule-run",
     "test:live": "RUN_LIVE_TESTS=1 vitest run tests/integration"
   },
   "dependencies": {

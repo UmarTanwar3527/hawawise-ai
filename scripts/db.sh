@@ -5,6 +5,12 @@
 #   scripts/db.sh push       Apply pending migrations and the seed (recorded in migration history)
 #   scripts/db.sh test       Run pgTAP security tests (transactional, leaves no data)
 #   scripts/db.sh types      Regenerate src/lib/supabase/database.types.ts
+#   scripts/db.sh schedule <https://app-origin>
+#                            Store the hourly-job URL and CRON_SECRET (from .env.local) in Supabase Vault
+#   scripts/db.sh schedule-status
+#                            Show the scheduled jobs, recent runs and HTTP results
+#   scripts/db.sh schedule-run ingest|brief
+#                            Trigger one job now (e.g. to refresh data before a demo)
 #
 # The connection string is read from .env.local and is never printed.
 set -euo pipefail
@@ -86,8 +92,51 @@ case "${1:-}" in
       > src/lib/supabase/database.types.ts
     echo "Wrote src/lib/supabase/database.types.ts"
     ;;
+  schedule)
+    base_url="${2:-}"
+    if [[ ! "$base_url" =~ ^https://[a-z0-9.-]+$ ]]; then
+      echo "Usage: scripts/db.sh schedule https://your-app.vercel.app   (https origin, no trailing slash)" >&2
+      exit 1
+    fi
+    if ! grep -qE '^CRON_SECRET=.+' .env.local; then
+      echo "CRON_SECRET is not set in .env.local." >&2
+      exit 1
+    fi
+    # The SQL (with the secret) goes to psql on stdin, never in process arguments or output.
+    HAWA_BASE_URL="$base_url" python3 - <<'PY' | "${PSQL[@]}" -f - >/dev/null
+import os, re, secrets
+env = {}
+for line in open(".env.local", encoding="utf-8"):
+    m = re.match(r"^([A-Z0-9_]+)=(.*)$", line.rstrip("\n"))
+    if m:
+        env[m.group(1)] = m.group(2).strip().strip('"')
+def q(value):
+    tag = "s" + secrets.token_hex(8)
+    return f"${tag}${value}${tag}$"
+pairs = [("hawa_base_url", os.environ["HAWA_BASE_URL"], "Origin of the deployed Hawa AI app"),
+         ("hawa_cron_secret", env["CRON_SECRET"], "Bearer token for the Hawa AI cron endpoints")]
+print("do $do$ declare existing uuid; begin")
+for name, value, description in pairs:
+    print(f"select id into existing from vault.secrets where name = '{name}';")
+    print(f"if existing is null then perform vault.create_secret({q(value)}, '{name}', '{description}');")
+    print(f"else perform vault.update_secret(existing, {q(value)}); end if;")
+print("end $do$;")
+PY
+    echo "Stored hawa_base_url ($base_url) and hawa_cron_secret in Supabase Vault."
+    ;;
+  schedule-run)
+    case "${2:-}" in
+      ingest|brief) "${PSQL[@]}" -At -c "select 'request ' || private.trigger_hawa_job('/api/cron/${2}')" ;;
+      *) echo "Usage: scripts/db.sh schedule-run ingest|brief" >&2; exit 1 ;;
+    esac
+    ;;
+  schedule-status)
+    "${PSQL[@]}" -c "select jobname, schedule, active from cron.job where jobname like 'hawa-%' order by jobname"
+    "${PSQL[@]}" -c "select j.jobname, d.status, d.start_time from cron.job_run_details d join cron.job j using (jobid) where j.jobname like 'hawa-%' order by d.start_time desc limit 6"
+    "${PSQL[@]}" -c "select id, status_code, timed_out, error_msg, created from net._http_response order by created desc limit 6"
+    ;;
   *)
-    sed -n '2,8p' "$0"
+    sed -n '2,14p' "$0"
     exit 1
     ;;
 esac

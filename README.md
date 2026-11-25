@@ -1,12 +1,32 @@
 # Hawa AI
 
-Evidence-grounded urban air-quality intelligence, piloting in **Jaipur, Rajasthan**.
+**Understand the air. Predict exposure. Take action.** Evidence-grounded AI for city air quality, piloting in **Jaipur, Rajasthan**.
+
+**Live app:** https://hawa-ai.vercel.app · **Guided demo:** https://hawa-ai.vercel.app/demo
+
+![Hawa AI dashboard: live station AQI with source, time and provenance labels](docs/screenshots/dashboard.png)
+
+## What it does
+
+| Question | Module | How |
+| --- | --- | --- |
+| What's happening? | **Dashboard** and **AI daily brief** | Live AQI from Jaipur's CPCB/RSPCB stations (via OpenAQ), calculated with India's CPCB method and labelled as such; every value shows source and time |
+| Why is it happening? | **Air Guardian** | Gemini function calling over allowlisted data tools; evidence and tool activity built by the server; English and Hindi |
+| What's likely to happen? | **City insights** and forecasts | 7-day trends, station comparison and daily rhythm calculated in code; forecasts labelled as modelled |
+| What should I do? | **Exposure planner** | Code ranks outdoor time windows from the forecast; Gemini explains, never calls anything "safe" |
+| How can I help? | **AI photo reporter** and **pollution map** | Gemini vision classifies a citizen photo (category, confidence, limitations); reports appear on the map; photos stay private |
+
+**AI never invents a number:** every AQI or concentration in an AI answer must match the data it retrieved (the grounding check), or the answer is corrected or replaced by an honest fallback.
+
+| | | |
+| --- | --- | --- |
+| ![Exposure planner](docs/screenshots/planner.png) | ![City insights](docs/screenshots/insights.png) | ![Pollution map](docs/screenshots/map.png) |
 
 > **Status: Day 6 (feature-complete for the hackathon).** Real Jaipur air-quality data (OpenAQ stations, Open-Meteo model) with a Hawa AI-calculated CPCB AQI; dashboard, interactive pollution map, **Air Guardian** (Gemini tool calling, grounded answers with evidence, English and Hindi), an **AI Daily Air Brief**, the **Exposure planner** (deterministic forecast ranking with an optional grounded AI explanation), the **AI civic pollution reporter** (anonymous photo reports analysed by Gemini vision, shown on the map) and **City insights** (7-day trends, station comparison and daily rhythm calculated in code, with an optional AI interpretation). A **guided demo** (`/demo`) walks through everything on live data with readiness checks. No sign-in yet; Settings is a placeholder and is not in the navigation.
 
 ## Stack
 
-Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4 · Zod · Vitest · Playwright. Data: Supabase (Postgres, PostGIS, Storage), OpenAQ, Open-Meteo. Planned: Supabase Auth, Gemini API, Google Maps Platform. Deployment target: Vercel.
+Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4 · Zod · Vitest · Playwright · pgTAP. Data: Supabase (Postgres 17, PostGIS, Row Level Security, Storage), OpenAQ v3, Open-Meteo Air Quality. AI: Google Gemini (`@google/genai`, server-side only). Maps: Leaflet + OpenStreetMap. Deployment: Vercel (Mumbai region); hourly ingestion scheduled inside Supabase (`pg_cron` + `pg_net`).
 
 ## Getting started
 
@@ -14,7 +34,7 @@ Requirements: Node.js ≥ 20.9 (developed on Node 24) and npm.
 
 ```bash
 npm install
-cp .env.example .env.local      # every key is optional during the foundation phase
+cp .env.example .env.local      # Supabase keys for data; GEMINI_API_KEY for AI; OPENAQ_API_KEY and CRON_SECRET for ingestion
 npm run dev                     # http://localhost:3000
 ```
 
@@ -40,6 +60,9 @@ npx playwright install chromium
 | `npm run db:push` | Apply migrations and seed to Supabase (`SUPABASE_DB_URL` in `.env.local`) |
 | `npm run db:test` | Run pgTAP security tests (rolled back; leaves no data) |
 | `npm run db:types` | Regenerate Supabase TypeScript types |
+| `npm run db:schedule -- https://<app>` | Store the app URL and `CRON_SECRET` in Supabase Vault for the hourly jobs |
+| `npm run db:schedule-status` | Show the hourly jobs, recent runs and HTTP results |
+| `npm run db:schedule-run -- ingest` | Run ingestion (or `brief`) now, e.g. before a demo |
 
 ## Routes
 

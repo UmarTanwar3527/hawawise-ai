@@ -44,3 +44,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# submission prep (pitch notes, Q&A, checklist): kept locally, not published
+docs/submission/

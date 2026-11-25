@@ -43,7 +43,7 @@ npm run build && npm start   # or npm run dev
 curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/ingest
 ```
 
-**Scheduling is not set up yet.** After deployment, call the endpoint hourly. Options: a GitHub Actions scheduled workflow, Supabase `pg_cron` with `pg_net`, or Vercel Cron (check the cron frequency your Vercel plan allows).
+**Scheduling:** Supabase `pg_cron` calls `/api/cron/ingest` at minute 20 and `/api/cron/brief` at minute 30 of every hour through `pg_net` (migration `20261126110000`). The URL and `CRON_SECRET` are kept in Supabase Vault (`npm run db:schedule -- https://<app>`), never in a migration. `npm run db:schedule-status` shows recent runs, and `npm run db:schedule-run -- ingest` runs one now. The GitHub Actions workflow is a manual backup only; its schedule was removed because GitHub's scheduler did not fire reliably.
 
 ## CPCB AQI calculation
 
