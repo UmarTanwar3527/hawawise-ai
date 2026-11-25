@@ -12,6 +12,8 @@ export type ToolDeclaration = {
 
 export type ModelPart =
   | { text: string; thoughtSignature?: string }
+  /** Image input (base64). Only server code builds these, from validated bytes. */
+  | { inlineData: { mimeType: "image/jpeg"; data: string } }
   | { functionCall: { name: string; args: Record<string, unknown>; id?: string }; thoughtSignature?: string }
   | { functionResponse: { name: string; response: Record<string, unknown>; id?: string } };
 
@@ -32,6 +34,8 @@ export type GenerateResult = {
   functionCalls: { name: string; args: Record<string, unknown>; id?: string }[];
   text: string;
   usage: { inputTokens: number; outputTokens: number };
+  /** The model that produced this turn (after any fallback). */
+  model?: string;
 };
 
 export type GenerateFn = (request: GenerateRequest) => Promise<GenerateResult>;

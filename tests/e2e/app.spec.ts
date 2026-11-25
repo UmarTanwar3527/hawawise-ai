@@ -7,7 +7,7 @@ const routes = [
   { path: "/guardian", heading: "Air Guardian" },
   { path: "/planner", heading: "Exposure planner" },
   { path: "/reports", heading: "Civic reports" },
-  { path: "/reports/new", heading: "New report" },
+  { path: "/reports/new", heading: "Report pollution" },
   { path: "/insights", heading: "City insights" },
   { path: "/settings", heading: "Settings" },
 ];
@@ -131,10 +131,15 @@ test.describe("API", () => {
     expect(Number.isNaN(Date.parse(body.timestamp))).toBe(false);
   });
 
-  test("reserved endpoints return 501 instead of placeholder data", async ({ request }) => {
+  test("reports and chat endpoints validate and expose only public data", async ({ request }) => {
+    // /api/reports is implemented (Day 4): public columns only.
     const reports = await request.get("/api/reports");
-    expect(reports.status()).toBe(501);
-    expect((await reports.json()).error.code).toBe("not_implemented");
+    expect(reports.status()).toBe(200);
+    for (const report of (await reports.json()).reports) {
+      expect(Object.keys(report).sort()).toEqual(
+        ["aiCategory", "aiConfidence", "createdAt", "category", "id", "latitude", "longitude", "status", "verificationStatus", "visibleSeverity"].sort(),
+      );
+    }
     // /api/ai/chat is implemented (Day 2); an empty body is rejected by validation.
     const chat = await request.post("/api/ai/chat", { data: {} });
     expect(chat.status()).toBe(400);

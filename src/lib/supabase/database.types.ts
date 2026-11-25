@@ -145,14 +145,14 @@ isOneToOne: false
                   ]
                 },"civic_reports": {
                   Row: {
-                    "ai_classification": Json | null,"category": string,"created_at": string,"description": string | null,"id": string,"latitude": number | null,"location_id": string | null,"longitude": number | null,"status": string,"updated_at": string,"user_id": string
+                    "ai_category": string | null,"ai_classification": Json | null,"ai_confidence": number | null,"ai_model": string | null,"ai_prompt_version": string | null,"ai_visible_severity": string | null,"category": string,"created_at": string,"description": string | null,"id": string,"latitude": number | null,"location_id": string | null,"longitude": number | null,"status": string,"submission_channel": string,"submitter_hash": string | null,"updated_at": string,"user_id": string | null,"verification_status": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "ai_classification"?: Json | null,"category": string,"created_at"?: string,"description"?: string | null,"id"?: string,"latitude"?: number | null,"location_id"?: string | null,"longitude"?: number | null,"status"?: string,"updated_at"?: string,"user_id"?: string
+                    "ai_category"?: string | null,"ai_classification"?: Json | null,"ai_confidence"?: number | null,"ai_model"?: string | null,"ai_prompt_version"?: string | null,"ai_visible_severity"?: string | null,"category": string,"created_at"?: string,"description"?: string | null,"id"?: string,"latitude"?: number | null,"location_id"?: string | null,"longitude"?: number | null,"status"?: string,"submission_channel"?: string,"submitter_hash"?: string | null,"updated_at"?: string,"user_id"?: string | null,"verification_status"?: string
                   }
                   Update: {
-                    "ai_classification"?: Json | null,"category"?: string,"created_at"?: string,"description"?: string | null,"id"?: string,"latitude"?: number | null,"location_id"?: string | null,"longitude"?: number | null,"status"?: string,"updated_at"?: string,"user_id"?: string
+                    "ai_category"?: string | null,"ai_classification"?: Json | null,"ai_confidence"?: number | null,"ai_model"?: string | null,"ai_prompt_version"?: string | null,"ai_visible_severity"?: string | null,"category"?: string,"created_at"?: string,"description"?: string | null,"id"?: string,"latitude"?: number | null,"location_id"?: string | null,"longitude"?: number | null,"status"?: string,"submission_channel"?: string,"submitter_hash"?: string | null,"updated_at"?: string,"user_id"?: string | null,"verification_status"?: string
                   }
                   Relationships: [
                     {
@@ -297,14 +297,14 @@ isOneToOne: false
                   ]
                 },"report_media": {
                   Row: {
-                    "classification": Json | null,"created_at": string,"id": string,"mime_type": string,"report_id": string,"size_bytes": number,"storage_path": string,"user_id": string
+                    "classification": Json | null,"created_at": string,"id": string,"mime_type": string,"report_id": string,"sha256": string | null,"size_bytes": number,"storage_path": string,"user_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "classification"?: Json | null,"created_at"?: string,"id"?: string,"mime_type": string,"report_id": string,"size_bytes": number,"storage_path": string,"user_id"?: string
+                    "classification"?: Json | null,"created_at"?: string,"id"?: string,"mime_type": string,"report_id": string,"sha256"?: string | null,"size_bytes": number,"storage_path": string,"user_id"?: string | null
                   }
                   Update: {
-                    "classification"?: Json | null,"created_at"?: string,"id"?: string,"mime_type"?: string,"report_id"?: string,"size_bytes"?: number,"storage_path"?: string,"user_id"?: string
+                    "classification"?: Json | null,"created_at"?: string,"id"?: string,"mime_type"?: string,"report_id"?: string,"sha256"?: string | null,"size_bytes"?: number,"storage_path"?: string,"user_id"?: string | null
                   }
                   Relationships: [
                     {

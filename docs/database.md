@@ -57,7 +57,7 @@ RLS is enabled on every table. Grants start from zero for `anon` and `authentica
 | ai_conversations | none | full CRUD on own (title only) |
 | ai_messages | none | read own; insert own with role `user` only |
 | ai_evidence | none | read own |
-| civic_reports | none | read own; create; edit and delete own while `submitted`. Cannot set `user_id`, `status` or `ai_classification`. |
+| civic_reports | read published reports, selected columns only (`id, category, latitude, longitude, status, verification_status, ai_category, ai_confidence, ai_visible_severity, created_at`); no descriptions, owners, hashes or AI observations | read own; create; edit and delete own while `submitted`. Cannot set `user_id`, `status` or `ai_classification`. |
 | report_media | none | read own; attach and remove on own `submitted` reports |
 | user_alerts | none | read own; update `read_at` only |
 | storage `report-media` (private, 5 MB, JPEG/PNG/WebP) | none | upload to `<own id>/<own submitted report id>/…`; read and delete own; no overwrite |
@@ -65,6 +65,8 @@ RLS is enabled on every table. Grants start from zero for `anon` and `authentica
 Written only by the server (service role): environmental data, raw payloads, assistant and system messages, evidence, alerts, report status and AI classifications.
 
 ## Abuse limits
+
+**Anonymous reports** (migrations 009–010): written only by the server (`submission_channel = 'anonymous'`, `user_id` null, photo under `anonymous/<report id>/` in private storage). The insert trigger requires a pseudonymous `submitter_hash`. It allows 3 per hour and 10 per day per submitter and 300 per day in total, and raises `P0429` beyond that. Locations must be in the Jaipur area. The retention step in ingestion clears `submitter_hash` after 48 hours. `report_media.sha256` blocks duplicate photos.
 
 Signed-in users can write some rows directly through the Data API, so per-user quotas are enforced in the database (migration 007): 20 civic reports, 50 conversations and 200 user messages per 24 hours, and 5 media rows and 5 stored images per report. Exceeding a quota raises SQLSTATE `P0429`. Storage deletes are only allowed while the report is still `submitted`.
 

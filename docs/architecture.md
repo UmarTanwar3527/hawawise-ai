@@ -35,7 +35,8 @@ Supabase: Postgres · PostGIS · Auth · Storage · RLS
 | Supabase schema, RLS, storage, Jaipur locations ([database.md](database.md)) | Applied; 53 pgTAP tests passing |
 | Supabase clients (browser, server, admin) with generated types | Built |
 | OpenAQ and Open-Meteo adapters, ingestion, CPCB AQI calculation, `/api/air-quality`, `/api/forecast` ([air-quality-data.md](air-quality-data.md)) | Built; ingestion not scheduled yet |
-| Gemini, Maps, auth | Not started; `/api/ai/chat` and `/api/reports` return `501` |
+| Gemini | Air Guardian, Daily Brief, planner explanations and civic photo analysis (server-only; see the feature docs) |
+| Maps, auth | Leaflet + OpenStreetMap (no Google Maps); auth set aside in a git stash |
 
 ## Rendering
 
@@ -49,4 +50,4 @@ Every value shown carries: provider, AQI scale code (`ind_cpcb` or `uaqi`), obse
 
 1. **Security hardening:** add a Content-Security-Policy once the Maps and Supabase origins are known, plus rate limiting on API routes.
 2. **Scheduling:** run `/api/cron/ingest` hourly after deployment.
-3. **Authentication** (set aside in a git stash) to enable conversation persistence, Settings and Civic reports.
+3. **Authentication** (set aside in a git stash) to enable conversation persistence, Settings and signed-in report history. Civic reports work anonymously (see `docs/civic-reports.md`).

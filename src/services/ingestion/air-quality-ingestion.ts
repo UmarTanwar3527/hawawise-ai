@@ -441,6 +441,12 @@ async function applyRetention(db: Db, now: Date) {
   const results = await Promise.all([
     db.from("pollution_forecasts").delete().lt("issued_at", forecastCutoff.toISOString()),
     db.from("provider_payloads").delete().lt("expires_at", now.toISOString()),
+    // Pseudonymous submitter hashes are only needed for abuse limits (24 h windows).
+    db
+      .from("civic_reports")
+      .update({ submitter_hash: null })
+      .not("submitter_hash", "is", null)
+      .lt("created_at", new Date(now.getTime() - 48 * HOUR).toISOString()),
   ]);
   for (const { error } of results) {
     if (error) console.error("retention delete failed", describeError(error));

@@ -113,6 +113,7 @@ async function generateWithModel(model: string, request: GenerateRequest): Promi
           inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
           outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
         },
+        model,
       };
     } catch (error) {
       lastError = classify(error);

@@ -2,7 +2,7 @@
 
 Evidence-grounded urban air-quality intelligence, piloting in **Jaipur, Rajasthan**.
 
-> **Status: Day 3.** Real Jaipur air-quality data (OpenAQ stations, Open-Meteo model) with a Hawa AI-calculated CPCB AQI; dashboard, interactive pollution map, **Air Guardian** (Gemini tool calling, grounded answers with evidence, English and Hindi), an **AI Daily Air Brief** and the **Exposure planner** (deterministic forecast ranking with an optional grounded AI explanation). No sign-in yet; Settings, Civic reports and Insights are placeholders.
+> **Status: Day 4.** Real Jaipur air-quality data (OpenAQ stations, Open-Meteo model) with a Hawa AI-calculated CPCB AQI; dashboard, interactive pollution map, **Air Guardian** (Gemini tool calling, grounded answers with evidence, English and Hindi), an **AI Daily Air Brief**, the **Exposure planner** (deterministic forecast ranking with an optional grounded AI explanation) and the **AI civic pollution reporter** (anonymous photo reports analysed by Gemini vision, shown on the map). No sign-in yet; Settings and Insights are placeholders.
 
 ## Stack
 
@@ -50,7 +50,7 @@ npx playwright install chromium
 | `/map` | Pollution map (stations, areas, model layer; OpenStreetMap) | Built |
 | `/guardian` | Air Guardian (AI, grounded, English and Hindi) | Built; needs `GEMINI_API_KEY` |
 | `/planner` | Exposure planner (forecast ranking in code; AI explanation in English or Hindi) | Built; AI part needs `GEMINI_API_KEY` |
-| `/reports`, `/reports/new` | Civic reports | Placeholder |
+| `/reports`, `/reports/new` | Civic reports: anonymous photo reports with AI analysis | Built; needs `GEMINI_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` |
 | `/insights` | City insights | Placeholder |
 | `/settings` | Settings | Placeholder |
 | `/api/health` | Liveness check | Built |
@@ -60,7 +60,8 @@ npx playwright install chromium
 | `/api/ai/chat` | Air Guardian API (rate-limited) | Built |
 | `/api/planner/explain` | AI explanation of an exposure plan (rate-limited) | Built |
 | `/api/cron/brief` | Daily Air Brief generation (Bearer `CRON_SECRET`) | Built; run by the hourly workflow |
-| `/api/reports` | Reserved | Returns `501 not_implemented` |
+| `/api/reports` | `GET` published reports (public columns); `POST` submit an analysed report (rate-limited) | Built |
+| `/api/reports/analyze` | AI photo analysis; nothing stored (rate-limited) | Built |
 
 ## Project structure
 
@@ -77,7 +78,7 @@ tests/            unit/ · integration/ · e2e/
 docs/             architecture and development log
 ```
 
-See [docs/architecture.md](docs/architecture.md), [docs/database.md](docs/database.md) and [docs/air-quality-data.md](docs/air-quality-data.md) [docs/ai-guardian.md](docs/ai-guardian.md) and [docs/exposure-planner.md](docs/exposure-planner.md) for the design and [AGENTS.md](AGENTS.md) for the engineering rules all contributors and AI agents follow.
+See [docs/architecture.md](docs/architecture.md), [docs/database.md](docs/database.md) and [docs/air-quality-data.md](docs/air-quality-data.md) [docs/ai-guardian.md](docs/ai-guardian.md), [docs/exposure-planner.md](docs/exposure-planner.md) and [docs/civic-reports.md](docs/civic-reports.md) for the design and [AGENTS.md](AGENTS.md) for the engineering rules all contributors and AI agents follow.
 
 ## Environment variables
 

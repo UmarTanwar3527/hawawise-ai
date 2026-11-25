@@ -9,15 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { categoryLabel, VERIFICATION_LABELS, VISIBLE_SEVERITY, type VisibleSeverity } from "@/features/civic-reports/constants";
+import type { PublicReport } from "@/features/civic-reports/schemas";
 import { cn } from "@/lib/utils/cn";
-import { formatConcentration, formatTimeIst } from "@/lib/utils/format";
+import { formatConcentration, formatDateTimeIst, formatTimeIst } from "@/lib/utils/format";
 
 import { MEASURED_STALE_AFTER_HOURS } from "../../constants";
 import { CPCB_AQI_CATEGORIES } from "../../cpcb-aqi-scale";
 import type { AreaModelledOverview, StationOverview } from "../../services/area-air-quality";
 import { ProvenanceBadge } from "../provenance-badge";
 
-type Selection = { kind: "station"; id: string } | { kind: "area"; slug: string } | null;
+type Selection = { kind: "station"; id: string } | { kind: "area"; slug: string } | { kind: "report"; id: string } | null;
 
 const NAVY = "#101b33";
 const PRIMARY = "#2563eb";
@@ -51,20 +53,34 @@ function aqiLabel(station: StationOverview) {
 export function PollutionMap({
   stations,
   areas,
+  reports,
+  reportsUnavailable = false,
+  initialReportId = null,
   generatedAt,
 }: {
   stations: StationOverview[];
   areas: AreaModelledOverview[];
+  reports: PublicReport[];
+  reportsUnavailable?: boolean;
+  initialReportId?: string | null;
   generatedAt: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const leafletRef = useRef<typeof Leaflet | null>(null);
   const mapRef = useRef<Leaflet.Map | null>(null);
-  const layersRef = useRef<{ stations: Leaflet.LayerGroup; areas: Leaflet.LayerGroup; model: Leaflet.LayerGroup } | null>(null);
+  const layersRef = useRef<{
+    stations: Leaflet.LayerGroup;
+    areas: Leaflet.LayerGroup;
+    model: Leaflet.LayerGroup;
+    reports: Leaflet.LayerGroup;
+  } | null>(null);
   const [ready, setReady] = useState(false);
   const [mapFailed, setMapFailed] = useState(false);
   const [showModel, setShowModel] = useState(false);
-  const [selection, setSelection] = useState<Selection>(null);
+  const [showReports, setShowReports] = useState(true);
+  const [selection, setSelection] = useState<Selection>(
+    initialReportId && reports.some((r) => r.id === initialReportId) ? { kind: "report", id: initialReportId } : null,
+  );
 
   const isStale = (observedAt: string | null) =>
     observedAt !== null && Date.parse(generatedAt) - Date.parse(observedAt) > MEASURED_STALE_AFTER_HOURS * HOUR;
@@ -87,6 +103,7 @@ export function PollutionMap({
           stations: L.layerGroup().addTo(map),
           areas: L.layerGroup().addTo(map),
           model: L.layerGroup(),
+          reports: L.layerGroup().addTo(map),
         };
         leafletRef.current = L;
         mapRef.current = map;
@@ -110,6 +127,26 @@ export function PollutionMap({
     layers.stations.clearLayers();
     layers.areas.clearLayers();
     layers.model.clearLayers();
+    layers.reports.clearLayers();
+
+    for (const report of reports) {
+      const selected = selection?.kind === "report" && selection.id === report.id;
+      L.marker([report.latitude, report.longitude], {
+        title: `Community report: ${categoryLabel(report.category)}`,
+        keyboard: true,
+        riseOnHover: true,
+        zIndexOffset: selected ? 1000 : -100,
+        icon: L.divIcon({
+          className: "",
+          iconAnchor: [9, 9],
+          html: `<span class="hawa-report-marker${selected ? " hawa-report-marker--selected" : ""}"></span>`,
+        }),
+      })
+        .on("click", () => setSelection({ kind: "report", id: report.id }))
+        .addTo(layers.reports);
+    }
+    if (showReports) layers.reports.addTo(map);
+    else layers.reports.remove();
 
     for (const area of areas) {
       const selected = selection?.kind === "area" && selection.slug === area.slug;
@@ -160,7 +197,7 @@ export function PollutionMap({
 
     if (showModel) layers.model.addTo(map);
     else layers.model.remove();
-  }, [ready, selection, showModel, stations, areas]);
+  }, [ready, selection, showModel, showReports, stations, areas, reports]);
 
   // Keep the selected item in view.
   useEffect(() => {
@@ -169,12 +206,15 @@ export function PollutionMap({
     const point =
       selection.kind === "station"
         ? stations.find((s) => s.id === selection.id)
-        : areas.find((a) => a.slug === selection.slug);
+        : selection.kind === "report"
+          ? reports.find((r) => r.id === selection.id)
+          : areas.find((a) => a.slug === selection.slug);
     if (point) map.panTo([point.latitude, point.longitude]);
-  }, [ready, selection, stations, areas]);
+  }, [ready, selection, stations, areas, reports]);
 
   const selectedStation = selection?.kind === "station" ? stations.find((s) => s.id === selection.id) : undefined;
   const selectedArea = selection?.kind === "area" ? areas.find((a) => a.slug === selection.slug) : undefined;
+  const selectedReport = selection?.kind === "report" ? reports.find((r) => r.id === selection.id) : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -193,6 +233,16 @@ export function PollutionMap({
           />
           Model estimate, PM2.5 µg/m³ <ProvenanceBadge kind="modelled" />
         </label>
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={showReports}
+            onChange={(event) => setShowReports(event.target.checked)}
+            className="size-4 accent-primary"
+          />
+          Community reports ({reports.length}) <Badge tone="neutral">Unverified</Badge>
+        </label>
+        {reportsUnavailable ? <span className="text-xs text-ink-subtle">Reports could not be loaded.</span> : null}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -216,15 +266,19 @@ export function PollutionMap({
         </Card>
 
         <Card>
-          <CardHeader title={selectedStation ? "Monitoring station" : selectedArea ? "Area" : "Details"} />
+          <CardHeader
+            title={selectedStation ? "Monitoring station" : selectedArea ? "Area" : selectedReport ? "Community report" : "Details"}
+          />
           <div className="p-5">
-            {selectedStation ? (
+            {selectedReport ? (
+              <ReportDetails report={selectedReport} />
+            ) : selectedStation ? (
               <StationDetails station={selectedStation} areas={areas} stale={isStale(selectedStation.observedAt)} />
             ) : selectedArea ? (
               <AreaDetails area={selectedArea} stations={stations} />
             ) : (
               <p className="text-sm leading-6 text-ink-muted">
-                Select a station or an area on the map, or in the tables below, to see its details.
+                Select a station, an area or a community report on the map, or in the tables below, to see its details.
               </p>
             )}
           </div>
@@ -307,6 +361,82 @@ export function PollutionMap({
           </div>
         </Card>
       </div>
+
+      {reports.length ? (
+        <Card>
+          <CardHeader
+            title="Community reports"
+            description="Unverified submissions; locations rounded to about 110 m. Not official complaints."
+          />
+          <div className="overflow-x-auto p-5 pt-3">
+            <table className="w-full min-w-[22rem] text-left text-sm">
+              <thead className="text-xs text-ink-subtle">
+                <tr>
+                  <th scope="col" className="py-2 pr-3 font-medium">Category</th>
+                  <th scope="col" className="py-2 pr-3 font-medium">Reported</th>
+                  <th scope="col" className="py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.slice(0, 20).map((report) => (
+                  <tr key={report.id} className="border-t border-line">
+                    <th scope="row" className="py-2 pr-3 font-normal">
+                      <button
+                        type="button"
+                        onClick={() => setSelection({ kind: "report", id: report.id })}
+                        className="text-left font-medium text-primary hover:underline"
+                      >
+                        {categoryLabel(report.category)}
+                      </button>
+                    </th>
+                    <td className="py-2 pr-3 text-ink-muted">{formatDateTimeIst(report.createdAt)}</td>
+                    <td className="py-2 text-ink-muted">{VERIFICATION_LABELS[report.verificationStatus] ?? report.verificationStatus}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+
+function ReportDetails({ report }: { report: PublicReport }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="font-semibold text-ink">{categoryLabel(report.category)}</h3>
+        <Badge tone={report.verificationStatus === "verified" ? "success" : "neutral"}>
+          {VERIFICATION_LABELS[report.verificationStatus] ?? report.verificationStatus}
+        </Badge>
+      </div>
+      <dl className="flex flex-col gap-1.5 text-sm">
+        <div className="flex justify-between gap-3">
+          <dt className="text-ink-subtle">Reported</dt>
+          <dd className="text-right text-ink">{formatDateTimeIst(report.createdAt)}</dd>
+        </div>
+        {report.aiCategory ? (
+          <div className="flex justify-between gap-3">
+            <dt className="text-ink-subtle">AI reading of photo</dt>
+            <dd className="text-right text-ink">
+              {categoryLabel(report.aiCategory)}
+              {report.aiConfidence !== null ? ` · ${Math.round(report.aiConfidence * 100)}%` : ""}
+            </dd>
+          </div>
+        ) : null}
+        {report.visibleSeverity ? (
+          <div className="flex justify-between gap-3">
+            <dt className="text-ink-subtle">Visible intensity</dt>
+            <dd className="text-right text-ink">{VISIBLE_SEVERITY[report.visibleSeverity as VisibleSeverity] ?? "Unclear"}</dd>
+          </div>
+        ) : null}
+      </dl>
+      <p className="flex gap-2 text-xs leading-5 text-ink-subtle">
+        <Icon name="info" size={14} className="mt-0.5 shrink-0" />
+        A community submission, not an official complaint and not a measurement. The AI confidence is the model&apos;s own
+        estimate. Location rounded to about 110 m; the photo is not published.
+      </p>
     </div>
   );
 }
@@ -415,6 +545,10 @@ function MapLegend() {
         <li className="flex items-center gap-1.5">
           <span aria-hidden="true" className="rounded-full border border-dashed border-primary px-1 text-[10px] text-primary-strong">~25</span>
           Model PM2.5 estimate
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="hawa-report-marker hawa-report-marker--legend" />
+          Community report (unverified)
         </li>
       </ul>
       <p className="text-xs text-ink-subtle">

@@ -118,3 +118,27 @@
 .leaflet-container {
   font-family: var(--font-sans);
 }
+
+/* Community report marker (Leaflet divIcon): a diamond, distinct from station squares. */
+.hawa-report-marker {
+  display: block;
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+  border: 3px solid var(--color-navy);
+  border-radius: 3px;
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgb(16 27 51 / 0.35);
+}
+.hawa-report-marker--selected {
+  width: 18px;
+  height: 18px;
+  border-color: var(--color-surface);
+  background: var(--color-primary);
+}
+.hawa-report-marker--legend {
+  width: 10px;
+  height: 10px;
+  border-width: 2px;
+  box-shadow: none;
+}

@@ -67,6 +67,17 @@ values ('aaaaaaaa-0000-4000-8000-000000000005', '11111111-1111-4111-8111-1111111
 insert into storage.objects (bucket_id, name)
 values ('report-media', '11111111-1111-4111-8111-111111111111/aaaaaaaa-0000-4000-8000-000000000005/photo.jpg');
 
+-- Anonymous reports (written by the server; no auth.uid()).
+insert into civic_reports (id, user_id, submission_channel, category, description, latitude, longitude,
+                           submitter_hash, ai_category, ai_confidence, ai_visible_severity)
+values ('aaaaaaaa-0000-4000-8000-000000000009', null, 'anonymous', 'smoke', 'Private anonymous description',
+        26.912, 75.787, 'fixture-hash-published', 'smoke', 0.8, 'moderate');
+insert into civic_reports (id, user_id, submission_channel, category, latitude, longitude, submitter_hash, verification_status)
+values ('aaaaaaaa-0000-4000-8000-00000000000a', null, 'anonymous', 'other', 26.9, 75.8, 'fixture-hash-dismissed', 'dismissed');
+insert into report_media (report_id, user_id, storage_path, mime_type, size_bytes, sha256)
+values ('aaaaaaaa-0000-4000-8000-000000000009', null,
+        'anonymous/aaaaaaaa-0000-4000-8000-000000000009/photo.jpg', 'image/jpeg', 100, repeat('a', 64));
+
 ------------------------------------------------------------------------------
 -- Schema and integrity
 ------------------------------------------------------------------------------
@@ -224,8 +235,27 @@ select isnt_empty($$select 1 from aqi_index_values where reading_id = 'aaaaaaaa-
   'anon can read AQI values');
 select throws_ok($$select 1 from provider_payloads$$, '42501', null,
   'anon cannot read raw provider payloads');
-select throws_ok($$select 1 from civic_reports$$, '42501', null,
-  'anon cannot read civic reports');
+select results_eq(
+  $$select id::text from civic_reports order by id$$,
+  $$values ('aaaaaaaa-0000-4000-8000-000000000009')$$,
+  'anon sees only published reports (not dismissed, not account reports)');
+select lives_ok(
+  $$select id, category, latitude, longitude, status, verification_status, ai_category, ai_confidence, ai_visible_severity, created_at from civic_reports$$,
+  'anon can read the public report columns');
+select throws_ok($$select description from civic_reports$$, '42501', null,
+  'anon cannot read report descriptions');
+select throws_ok($$select submitter_hash from civic_reports$$, '42501', null,
+  'anon cannot read submitter hashes');
+select throws_ok($$select ai_classification from civic_reports$$, '42501', null,
+  'anon cannot read AI observations');
+select throws_ok($$select user_id from civic_reports$$, '42501', null,
+  'anon cannot read report owners');
+select throws_ok($$select 1 from report_media$$, '42501', null,
+  'anon cannot read report media');
+select throws_ok(
+  $$insert into civic_reports (category, latitude, longitude) values ('other', 26.9, 75.8)$$,
+  '42501', null,
+  'anon cannot create reports through the Data API');
 select throws_ok($$select 1 from user_profiles$$, '42501', null,
   'anon cannot read profiles');
 select throws_ok($$select 1 from ai_messages$$, '42501', null,
@@ -430,6 +460,48 @@ select throws_ok(
   'P0429', null,
   'the 21st report within 24 hours is refused');
 reset role;
+
+------------------------------------------------------------------------------
+-- Anonymous reports: integrity and abuse limits (server writes)
+------------------------------------------------------------------------------
+
+-- Server writes run without a JWT (auth.uid() is null).
+select set_config('request.jwt.claims', '', true);
+select set_config('request.jwt.claim.sub', '', true);
+
+select throws_ok(
+  $$insert into civic_reports (user_id, submission_channel, category, latitude, longitude)
+    values (null, 'anonymous', 'other', 26.9, 75.8)$$,
+  '23514', null,
+  'anonymous reports need a submitter hash');
+select throws_ok(
+  $$insert into civic_reports (user_id, submission_channel, category, latitude, longitude, submitter_hash)
+    values (null, 'anonymous', 'other', 28.6, 77.2, 'fixture-hash-delhi')$$,
+  '23514', null,
+  'anonymous reports must be in the Jaipur area');
+select throws_ok(
+  $$insert into civic_reports (user_id, submission_channel, category, latitude, longitude, submitter_hash)
+    values ('11111111-1111-4111-8111-111111111111', 'anonymous', 'other', 26.9, 75.8, 'fixture-hash-owner')$$,
+  '23514', null,
+  'an anonymous report cannot have an owner');
+select throws_ok(
+  $$insert into report_media (report_id, user_id, storage_path, mime_type, size_bytes)
+    values ('aaaaaaaa-0000-4000-8000-000000000009', null,
+            '11111111-1111-4111-8111-111111111111/aaaaaaaa-0000-4000-8000-000000000009/x.jpg', 'image/jpeg', 10)$$,
+  '23514', null,
+  'anonymous media must live in the anonymous folder');
+select lives_ok(
+  $$update civic_reports set submitter_hash = null where id = 'aaaaaaaa-0000-4000-8000-000000000009'$$,
+  'the retention job can clear a submitter hash');
+select lives_ok(
+  $$insert into civic_reports (user_id, submission_channel, category, latitude, longitude, submitter_hash)
+    select null, 'anonymous', 'other', 26.9, 75.8, 'fixture-hash-quota' from generate_series(1, 3)$$,
+  'an anonymous submitter can file 3 reports an hour');
+select throws_ok(
+  $$insert into civic_reports (user_id, submission_channel, category, latitude, longitude, submitter_hash)
+    values (null, 'anonymous', 'other', 26.9, 75.8, 'fixture-hash-quota')$$,
+  'P0429', null,
+  'the 4th anonymous report within an hour is refused');
 
 select * from finish();
 
