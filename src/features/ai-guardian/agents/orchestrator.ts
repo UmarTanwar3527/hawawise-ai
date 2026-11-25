@@ -9,7 +9,7 @@ import { submitAnswerSchema, type Evidence, type GuardianResponse, type SubmitAn
 import type { GuardianDataSource } from "../tools/data-source";
 import { executeTool, TOOL_DECLARATIONS, type ToolExecution } from "../tools/tools";
 
-import { collectNumbers, findUnsupportedFigures } from "./grounding";
+import { collectDataNumbers, collectNumbers, findUnsupportedFigures } from "./grounding";
 
 export const GUARDIAN_LIMITS = { maxTurns: 5, maxToolCalls: 8 } as const;
 
@@ -109,7 +109,7 @@ REPLY LANGUAGE FOR THIS QUESTION: ${language === "hi" ? 'Hindi (Devanagari scrip
           });
           continue;
         }
-        const allowed = collectNumbers(executions.map((e) => e.result), new Set(KNOWLEDGE_NUMBERS));
+        const allowed = collectDataNumbers(executions.map((e) => e.result), new Set(KNOWLEDGE_NUMBERS));
         const text = [parsed.data.answer, parsed.data.summary, ...parsed.data.recommendations, ...parsed.data.warnings].join("\n");
         const unsupported = findUnsupportedFigures(text, allowed);
         if (unsupported.length === 0) {

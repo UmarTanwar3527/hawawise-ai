@@ -2,7 +2,7 @@
 
 Evidence-grounded urban air-quality intelligence, piloting in **Jaipur, Rajasthan**.
 
-> **Status: Day 2.** Real Jaipur air-quality data (OpenAQ stations, Open-Meteo model) with a Hawa AI-calculated CPCB AQI; dashboard, interactive pollution map, **Air Guardian** (Gemini tool calling, grounded answers with evidence, English and Hindi) and an **AI Daily Air Brief**. No sign-in yet; Settings, Civic reports, Planner and Insights are placeholders.
+> **Status: Day 3.** Real Jaipur air-quality data (OpenAQ stations, Open-Meteo model) with a Hawa AI-calculated CPCB AQI; dashboard, interactive pollution map, **Air Guardian** (Gemini tool calling, grounded answers with evidence, English and Hindi), an **AI Daily Air Brief** and the **Exposure planner** (deterministic forecast ranking with an optional grounded AI explanation). No sign-in yet; Settings, Civic reports and Insights are placeholders.
 
 ## Stack
 
@@ -49,7 +49,7 @@ npx playwright install chromium
 | `/dashboard?location=<slug>` | Air dashboard | Built on stored provider data |
 | `/map` | Pollution map (stations, areas, model layer; OpenStreetMap) | Built |
 | `/guardian` | Air Guardian (AI, grounded, English and Hindi) | Built; needs `GEMINI_API_KEY` |
-| `/planner` | Exposure planner | Placeholder |
+| `/planner` | Exposure planner (forecast ranking in code; AI explanation in English or Hindi) | Built; AI part needs `GEMINI_API_KEY` |
 | `/reports`, `/reports/new` | Civic reports | Placeholder |
 | `/insights` | City insights | Placeholder |
 | `/settings` | Settings | Placeholder |
@@ -58,6 +58,7 @@ npx playwright install chromium
 | `/api/forecast?location=<slug>&hours=<n>` | Hourly modelled forecast | Built |
 | `/api/cron/ingest` | Provider ingestion (Bearer `CRON_SECRET`) | Built; not scheduled yet |
 | `/api/ai/chat` | Air Guardian API (rate-limited) | Built |
+| `/api/planner/explain` | AI explanation of an exposure plan (rate-limited) | Built |
 | `/api/cron/brief` | Daily Air Brief generation (Bearer `CRON_SECRET`) | Built; run by the hourly workflow |
 | `/api/reports` | Reserved | Returns `501 not_implemented` |
 
@@ -76,7 +77,7 @@ tests/            unit/ · integration/ · e2e/
 docs/             architecture and development log
 ```
 
-See [docs/architecture.md](docs/architecture.md), [docs/database.md](docs/database.md) and [docs/air-quality-data.md](docs/air-quality-data.md) and [docs/ai-guardian.md](docs/ai-guardian.md) for the design and [AGENTS.md](AGENTS.md) for the engineering rules all contributors and AI agents follow.
+See [docs/architecture.md](docs/architecture.md), [docs/database.md](docs/database.md) and [docs/air-quality-data.md](docs/air-quality-data.md) [docs/ai-guardian.md](docs/ai-guardian.md) and [docs/exposure-planner.md](docs/exposure-planner.md) for the design and [AGENTS.md](AGENTS.md) for the engineering rules all contributors and AI agents follow.
 
 ## Environment variables
 

@@ -77,5 +77,5 @@ Per call: 25 s timeout, 1 retry on timeouts and 5xx (no immediate retry on 429),
 
 - **No conversation persistence:** `ai_conversations`, `ai_messages` and `ai_evidence` are unused until authentication returns. Chats live in the browser tab (sessionStorage).
 - **No streaming:** the UI shows tool activity after the answer, not live.
-- **Grounding scope:** it checks AQI values and concentrations with units. Other numbers (distances, percentages, times) are not checked.
+- **Grounding scope:** it checks AQI values and concentrations with units. Other numbers (distances, percentages, times) are not checked. Allowed figures come from **numeric fields** of tool results (`collectDataNumbers`) plus the curated knowledge text; digits inside strings such as timestamps (`2026-11-25`) or station names (`Sector-12`) do not count, since they would otherwise let invented values like "25 µg/m³" pass (fixed 2026-11-25).
 - **Retrieval:** knowledge retrieval is keyword-based over 6 curated items. The `KnowledgeItem` shape is ready for a vector store later.

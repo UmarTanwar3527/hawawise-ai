@@ -25,6 +25,14 @@ export async function getKnownAreaSlugs(): Promise<string[]> {
   return areas.map((area) => area.slug);
 }
 
+/** Selectable areas with names, cached under one key. */
+export async function getAreasCached() {
+  "use cache";
+  cacheLife({ stale: 300, revalidate: 3600, expire: 86_400 });
+  cacheTag(AIR_QUALITY_CACHE_TAG);
+  return getAreas(createSupabasePublicClient());
+}
+
 /**
  * Everything the dashboard needs for one area, from stored data only.
  * Callers must check the slug against getKnownAreaSlugs() first, so

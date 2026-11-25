@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { collectNumbers, extractClaimedFigures, findUnsupportedFigures } from "@/features/ai-guardian/agents/grounding";
+import { collectDataNumbers, collectNumbers, extractClaimedFigures, findUnsupportedFigures } from "@/features/ai-guardian/agents/grounding";
 import { historyToContents, signAssistantText } from "@/features/ai-guardian/agents/history";
 import { detectLanguage, runGuardian } from "@/features/ai-guardian/agents/orchestrator";
 import { searchKnowledge } from "@/features/ai-guardian/rag/knowledge-base";
@@ -90,6 +90,13 @@ describe("grounding check", () => {
     const allowed = collectNumbers({ aqi: 140, pm25: 54.5 });
     expect(findUnsupportedFigures("AQI 140, PM2.5 54.5 µg/m³ (about 55 µg/m³)", allowed)).toEqual([]);
     expect(findUnsupportedFigures("AQI 151 on the US scale", allowed)).toEqual([151]);
+  });
+  it("does not treat digits in timestamps or station names as data", () => {
+    const data = { station: "Mansarovar Sector-12", observedAt: "2026-11-25T07:30:00Z", pm25: 54.5 };
+    // collectNumbers would accept 25 (from the date) and 12 (from the name); data numbers must not.
+    expect(findUnsupportedFigures("PM2.5 is 25 µg/m³, AQI 12", collectNumbers(data))).toEqual([]);
+    expect(findUnsupportedFigures("PM2.5 is 25 µg/m³, AQI 12", collectDataNumbers(data))).toEqual([25, 12]);
+    expect(findUnsupportedFigures("PM2.5 is 54.5 µg/m³", collectDataNumbers(data))).toEqual([]);
   });
 });
 

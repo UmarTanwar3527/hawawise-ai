@@ -29,7 +29,7 @@ export const primaryNavigation: readonly NavItem[] = [
   {
     href: "/planner",
     label: "Exposure planner",
-    description: "Compare activity times and locations",
+    description: "Compare outdoor activity times",
     icon: "calendar",
   },
   {

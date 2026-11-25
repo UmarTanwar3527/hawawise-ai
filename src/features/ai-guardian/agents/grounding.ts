@@ -34,6 +34,18 @@ export function collectNumbers(value: unknown, into: Set<number> = new Set()): S
   return into;
 }
 
+/**
+ * Numbers from numeric fields only. Use this for retrieved data: digits inside
+ * strings (timestamps such as "2026-11-25", times such as "12:30 pm", station
+ * names such as "Sector-12") must not make a claimed figure look grounded.
+ */
+export function collectDataNumbers(value: unknown, into: Set<number> = new Set()): Set<number> {
+  if (typeof value === "number") return collectNumbers(value, into);
+  if (Array.isArray(value)) value.forEach((item) => collectDataNumbers(item, into));
+  else if (value && typeof value === "object") Object.values(value).forEach((item) => collectDataNumbers(item, into));
+  return into;
+}
+
 function isSupported(figure: number, allowed: Set<number>): boolean {
   for (const value of allowed) {
     if (figure === value) return true;

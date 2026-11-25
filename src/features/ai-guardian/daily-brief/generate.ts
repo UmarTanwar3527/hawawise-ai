@@ -8,7 +8,7 @@ import type { Database, Json } from "@/lib/supabase/database.types";
 import type { GenerateFn, ModelContent } from "@/lib/gemini/types";
 import { formatDateTimeIst, istDayKey } from "@/lib/utils/format";
 
-import { collectNumbers, findUnsupportedFigures } from "../agents/grounding";
+import { collectDataNumbers, collectNumbers, findUnsupportedFigures } from "../agents/grounding";
 import { KNOWLEDGE_BASE } from "../rag/knowledge-base";
 import type { Evidence } from "../schemas/response";
 import type { GuardianDataSource } from "../tools/data-source";
@@ -119,7 +119,7 @@ export async function generateDailyBriefIfNeeded({
     executeTool("get_air_quality_forecast", { location: "Jaipur", hours: 72 }, data),
   ]);
   const payload = Object.fromEntries(executions.map((e) => [e.name, e.result]));
-  const allowed = collectNumbers(
+  const allowed = collectDataNumbers(
     executions.map((e) => e.result),
     collectNumbers(KNOWLEDGE_BASE.map((item) => item.content)),
   );
