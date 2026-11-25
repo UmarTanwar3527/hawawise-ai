@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Hawa AI design tokens.
+ * Colours follow the product brief; text/background pairs used for copy
+ * have been chosen to meet WCAG 2.1 AA contrast on white and canvas.
+ */
+@theme {
+  /* Surfaces */
+  --color-canvas: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-line: #e3e8ef;
+  --color-line-strong: #cbd3df;
+
+  /* Typography */
+  --color-ink: #172033;
+  --color-ink-muted: #475069;
+  --color-ink-subtle: #5d6680;
+
+  /* Brand */
+  --color-navy: #101b33;
+  --color-navy-soft: #1b2847;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-strong: #1e40af;
+  --color-primary-soft: #eef3ff;
+
+  /* Status */
+  --color-healthy: #16a34a;
+  --color-moderate: #eab308;
+  --color-poor: #ea580c;
+  --color-severe: #dc2626;
+
+  /* Shape and depth */
+  --radius-card: 1rem;
+  --shadow-card:
+    0 1px 2px rgb(16 27 51 / 0.04), 0 1px 3px rgb(16 27 51 / 0.06);
+  --shadow-raised:
+    0 1px 2px rgb(16 27 51 / 0.05), 0 12px 32px -12px rgb(16 27 51 / 0.18);
 }
 
+/* Fonts are provided by next/font on <html>, so map them inline. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
