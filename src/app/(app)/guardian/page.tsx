@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
+import { Suspense } from "react";
 
-import { ModulePlaceholder } from "@/components/layout/module-placeholder";
+import { Card } from "@/components/ui/card";
+import { Icon } from "@/components/ui/icon";
 import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/states";
+import { GuardianChat } from "@/features/ai-guardian/components/guardian-chat";
+import { isGeminiConfigured } from "@/lib/gemini/client";
 
 export const metadata: Metadata = {
   title: "Air Guardian",
@@ -13,26 +20,32 @@ export default function GuardianPage() {
       <PageHeader
         eyebrow="AI assistant"
         title="Air Guardian"
-        description="Ask questions about Jaipur's air and get answers grounded in retrieved data."
+        description="Ask about Jaipur's air. Answers are grounded in stored station and model data, with sources and times."
       />
-      <ModulePlaceholder
-        icon="chat"
-        notice="Air Guardian provides general air-quality information. It does not diagnose conditions or replace advice from a medical professional."
-        capabilities={[
-          "Answers that cite the provider, AQI standard and observation time.",
-          "Clear separation of measured, modelled and forecast values.",
-          "Guidance drawn from approved WHO and CPCB reference documents.",
-          "Responses in English and Hindi.",
-          "An explicit statement when data is unavailable or stale.",
-        ]}
-        dependencies={[
-          "Gemini API, called only from the server.",
-          "The air-quality tool (get_air_quality) backed by verified provider data.",
-          "Knowledge retrieval over WHO and CPCB documents.",
-          "A deterministic safety-validation layer for recommendations.",
-          "Supabase Auth to store each user's conversation history privately.",
-        ]}
-      />
+      <div role="note" className="flex gap-3 rounded-xl border border-blue-200 bg-primary-soft p-4 text-sm leading-6 text-primary-strong">
+        <Icon name="info" size={18} className="mt-0.5 shrink-0" />
+        Air Guardian gives general air-quality information. It does not diagnose conditions or replace advice from a medical professional.
+      </div>
+      <Suspense fallback={<Skeleton className="h-[560px] w-full rounded-card" />}>
+        <GuardianContent />
+      </Suspense>
     </div>
   );
+}
+
+async function GuardianContent() {
+  // The configuration check reads server environment at request time.
+  await connection();
+  if (!isGeminiConfigured()) {
+    return (
+      <Card>
+        <EmptyState
+          icon="chat"
+          title="Air Guardian is not configured"
+          description="The AI service key is not set on this deployment. No AI answers are shown."
+        />
+      </Card>
+    );
+  }
+  return <GuardianChat />;
 }

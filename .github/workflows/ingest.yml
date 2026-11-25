@@ -37,3 +37,17 @@ jobs:
           # The summary contains provider statuses and counts only, no secrets.
           jq -r '.providers[]? | "\(.provider): \(.status) (\(.recordsWritten) records)"' response.json || cat response.json
           test "${status}" = "200"
+
+      - name: Generate AI daily air brief
+        if: success()
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BASE_URL: ${{ vars.HAWA_BASE_URL }}
+        run: |
+          status=$(curl -sS -o brief.json -w "%{http_code}" --max-time 90 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${BASE_URL}/api/cron/brief")
+          echo "HTTP ${status}"
+          jq -c '{status, reason}' brief.json || cat brief.json
+          # A failed brief does not fail the run: measured data was already ingested.
+          if [ "${status}" != "200" ]; then echo "::warning::Daily brief was not generated (HTTP ${status})"; fi

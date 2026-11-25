@@ -3,13 +3,13 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { PanelPlaceholder } from "@/components/layout/module-placeholder";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
+import { DailyBriefCard } from "@/features/ai-guardian/components/daily-brief-card";
 import { AqiScaleLegend } from "@/features/air-quality/components/aqi-scale-legend";
 import { CurrentAqiCard } from "@/features/air-quality/components/dashboard/current-aqi-card";
 import { ForecastDays } from "@/features/air-quality/components/dashboard/forecast-days";
@@ -24,6 +24,8 @@ import { areaQuerySchema } from "@/features/air-quality/schemas/area-query";
 import {
   getDashboardData,
   getKnownAreaSlugs,
+  getLatestDailyBrief,
+  type DailyBrief,
   type DashboardData,
 } from "@/features/air-quality/services/dashboard-data";
 import {
@@ -77,11 +79,19 @@ async function DashboardContent({ searchParams }: { searchParams: PageProps<"/da
   if (!known.includes(slug)) notFound();
 
   let data: DashboardData;
+  let brief: DailyBrief | null = null;
   try {
     data = await getDashboardData(slug);
   } catch (error) {
     console.error("dashboard data failed", error instanceof Error ? error.name : "unknown");
     return <DataUnavailable slug={slug} />;
+  }
+
+  try {
+    brief = await getLatestDailyBrief();
+  } catch (error) {
+    // The brief is optional; measured data still renders without it.
+    console.error("daily brief read failed", error instanceof Error ? error.name : "unknown");
   }
 
   // Age and staleness are computed per request, not when the data was cached.
@@ -148,12 +158,7 @@ async function DashboardContent({ searchParams }: { searchParams: PageProps<"/da
             )}
           </div>
         </Card>
-        <PanelPlaceholder
-          title="AI daily summary"
-          badge="Development placeholder"
-          icon="sparkle"
-          description="Air Guardian is not connected yet. The summary will be generated only from the data on this page, with sources and times."
-        />
+        <DailyBriefCard brief={brief} now={now} />
 
         <ForecastDays className="lg:col-span-3" forecast={forecast} generatedAt={generatedAt} />
 

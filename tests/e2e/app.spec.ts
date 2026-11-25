@@ -135,8 +135,9 @@ test.describe("API", () => {
     const reports = await request.get("/api/reports");
     expect(reports.status()).toBe(501);
     expect((await reports.json()).error.code).toBe("not_implemented");
+    // /api/ai/chat is implemented (Day 2); an empty body is rejected by validation.
     const chat = await request.post("/api/ai/chat", { data: {} });
-    expect(chat.status()).toBe(501);
+    expect(chat.status()).toBe(400);
   });
 
   test("air-quality API validates input and labels provenance", async ({ request }) => {

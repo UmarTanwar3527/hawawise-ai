@@ -19,6 +19,20 @@ export type Database = {
                   Relationships: [
                     
                   ]
+                },"ai_daily_briefs": {
+                  Row: {
+                    "content": NonNullable<Json>,"data_as_of": string,"data_signature": string,"evidence": NonNullable<Json>,"generated_at": string,"id": string,"model": string,"prompt_version": string,"scope": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "content": NonNullable<Json>,"data_as_of": string,"data_signature": string,"evidence"?: NonNullable<Json>,"generated_at"?: string,"id"?: string,"model": string,"prompt_version": string,"scope"?: string
+                  }
+                  Update: {
+                    "content"?: NonNullable<Json>,"data_as_of"?: string,"data_signature"?: string,"evidence"?: NonNullable<Json>,"generated_at"?: string,"id"?: string,"model"?: string,"prompt_version"?: string,"scope"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"ai_evidence": {
                   Row: {
                     "accessed_at": string,"excerpt": string | null,"forecast_id": string | null,"id": string,"message_id": string,"reading_id": string | null,"source_name": string,"source_url": string | null

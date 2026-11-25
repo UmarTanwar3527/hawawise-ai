@@ -20,6 +20,8 @@ export type CpcbAqiCategory = {
   swatchClass: string;
   /** Same colour as an SVG fill. */
   fillClass: string;
+  /** Same colour as a raw value, for non-React renderers (e.g. Leaflet markers). */
+  hex: string;
   /** Accessible text/background pair for category chips. */
   chipClass: string;
   /** CPCB "associated health impacts" statement for the category. */
@@ -35,6 +37,7 @@ const SEVERE: CpcbAqiCategory = {
   max: CPCB_AQI_MAX,
   swatchClass: "bg-red-900",
   fillClass: "fill-red-900",
+  hex: "#7f1d1d",
   chipClass: "bg-red-900 text-white border-red-900",
   healthImpact: "Affects healthy people and seriously impacts those with existing diseases",
 };
@@ -47,6 +50,7 @@ export const CPCB_AQI_CATEGORIES: readonly CpcbAqiCategory[] = [
     max: 50,
     swatchClass: "bg-healthy",
     fillClass: "fill-healthy",
+    hex: "#16a34a",
     chipClass: "bg-green-100 text-green-800 border-green-200",
     healthImpact: "Minimal impact",
   },
@@ -57,6 +61,7 @@ export const CPCB_AQI_CATEGORIES: readonly CpcbAqiCategory[] = [
     max: 100,
     swatchClass: "bg-lime-500",
     fillClass: "fill-lime-500",
+    hex: "#84cc16",
     chipClass: "bg-lime-100 text-lime-800 border-lime-200",
     healthImpact: "Minor breathing discomfort to sensitive people",
   },
@@ -67,6 +72,7 @@ export const CPCB_AQI_CATEGORIES: readonly CpcbAqiCategory[] = [
     max: 200,
     swatchClass: "bg-moderate",
     fillClass: "fill-moderate",
+    hex: "#eab308",
     chipClass: "bg-yellow-100 text-yellow-800 border-yellow-200",
     healthImpact: "Breathing discomfort to the people with lungs, asthma and heart diseases",
   },
@@ -77,6 +83,7 @@ export const CPCB_AQI_CATEGORIES: readonly CpcbAqiCategory[] = [
     max: 300,
     swatchClass: "bg-poor",
     fillClass: "fill-poor",
+    hex: "#ea580c",
     chipClass: "bg-orange-100 text-orange-800 border-orange-200",
     healthImpact: "Breathing discomfort to most people on prolonged exposure",
   },
@@ -87,6 +94,7 @@ export const CPCB_AQI_CATEGORIES: readonly CpcbAqiCategory[] = [
     max: 400,
     swatchClass: "bg-severe",
     fillClass: "fill-severe",
+    hex: "#dc2626",
     chipClass: "bg-red-100 text-red-800 border-red-200",
     healthImpact: "Respiratory illness on prolonged exposure",
   },

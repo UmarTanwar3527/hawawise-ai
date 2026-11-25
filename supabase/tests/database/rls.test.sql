@@ -232,6 +232,12 @@ select throws_ok($$select 1 from ai_messages$$, '42501', null,
   'anon cannot read AI messages');
 select throws_ok($$select 1 from provider_sync_logs$$, '42501', null,
   'anon cannot read provider sync logs');
+select lives_ok($$select 1 from ai_daily_briefs$$, 'anon can read AI daily briefs');
+select throws_ok(
+  $$insert into ai_daily_briefs (data_signature, data_as_of, model, prompt_version, content)
+    values ('x', now(), 'm', 'p', '{}')$$,
+  '42501', null,
+  'anon cannot write AI daily briefs');
 select is_empty($$select 1 from locations where slug = 'rls-inactive-area'$$,
   'anon cannot see inactive locations');
 select throws_ok(
@@ -343,6 +349,8 @@ select throws_ok($$delete from pollution_forecasts$$, '42501', null,
   'users cannot delete forecasts');
 select throws_ok($$update data_sources set is_active = false$$, '42501', null,
   'users cannot change data sources');
+select throws_ok($$delete from ai_daily_briefs$$, '42501', null,
+  'signed-in users cannot delete AI daily briefs');
 
 reset role;
 

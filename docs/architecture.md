@@ -49,4 +49,4 @@ Every value shown carries: provider, AQI scale code (`ind_cpcb` or `uaqi`), obse
 
 1. **Security hardening:** add a Content-Security-Policy once the Maps and Supabase origins are known, plus rate limiting on API routes.
 2. **Scheduling:** run `/api/cron/ingest` hourly after deployment.
-3. **AI layer:** Air Guardian and the daily summary, generated only from the stored data.
+3. **Authentication** (set aside in a git stash) to enable conversation persistence, Settings and Civic reports.

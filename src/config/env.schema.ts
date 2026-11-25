@@ -39,6 +39,19 @@ export const serverEnvSchema = z.object({
     .default("development"),
   SUPABASE_SERVICE_ROLE_KEY: optionalString,
   GEMINI_API_KEY: optionalString,
+  /** Gemini model id for Air Guardian and the Daily Air Brief. */
+  GEMINI_MODEL: z.preprocess(emptyToUndefined, z.string().regex(/^[a-z0-9.-]+$/).default("gemini-3.5-flash-lite")),
+  /** Comma-separated models tried in order when the primary is over quota or overloaded. */
+  GEMINI_FALLBACK_MODELS: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^[a-z0-9.-]+(,[a-z0-9.-]+)*$/)
+      .default("gemini-3.1-flash-lite,gemini-3.5-flash")
+      .transform((value) => value.split(",")),
+  ),
+  /** Model "thinking" effort. Lower is faster; grounding is enforced server-side regardless. */
+  GEMINI_THINKING_LEVEL: z.preprocess(emptyToUndefined, z.enum(["minimal", "low", "medium", "high"]).default("minimal")),
   GOOGLE_AIR_QUALITY_API_KEY: optionalString,
   OPENAQ_API_KEY: optionalString,
   /** Bearer token required by /api/cron/ingest. At least 32 characters. */

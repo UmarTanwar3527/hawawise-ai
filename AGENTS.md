@@ -61,7 +61,9 @@ Run `npm run check` before reporting work as done, and `npm run test:e2e` for UI
 
 ## AI rules
 
-- One orchestrator with tools (`get_air_quality`, `search_knowledge`, `evaluate_exposure`, `validate_recommendation`), not several independent agents.
+- One orchestrator (`src/features/ai-guardian/agents/orchestrator.ts`) with allowlisted tools that call the existing service layer, not several independent agents. See `docs/ai-guardian.md`.
+- Evidence, tool activity and staleness warnings are built server-side from actual tool results, never written by the model. Every AQI or concentration figure in a model answer must pass the grounding check.
+- AI output is generated on the server only. Briefs are generated on a schedule, never on page load. Standard tests mock Gemini; never make live AI calls in `npm test`.
 - The model requests tools; our server validates the arguments and executes the tools. Never execute arbitrary model-generated requests.
 - No medical diagnosis, and no claim that an activity is completely safe based on AQI alone.
 - Civic reports are community submissions, not official complaints.

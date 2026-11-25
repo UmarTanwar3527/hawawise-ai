@@ -5,6 +5,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { createSupabasePublicClient } from "@/lib/supabase/public";
 
 import {
+  getAreasModelledOverview,
   getAreaAirQuality,
   getAreaForecast,
   getAreas,
@@ -68,4 +69,58 @@ export async function getAreaForecastCached(slug: string, hours: number) {
   cacheLife({ stale: 300, revalidate: 900, expire: 7200 });
   cacheTag(AIR_QUALITY_CACHE_TAG);
   return getAreaForecast(createSupabasePublicClient(), slug, hours);
+}
+
+/** Stations (measured, calculated CPCB AQI) and areas (modelled PM2.5) for the map. */
+export async function getMapData() {
+  "use cache";
+  cacheLife({ stale: 60, revalidate: 300, expire: 3600 });
+  cacheTag(AIR_QUALITY_CACHE_TAG);
+  const db = createSupabasePublicClient();
+  const now = new Date();
+  const [stations, areas] = await Promise.all([getStationsOverview(db, now), getAreasModelledOverview(db, now)]);
+  return { stations, areas };
+}
+
+export type MapData = Awaited<ReturnType<typeof getMapData>>;
+
+export type DailyBrief = {
+  generatedAt: string;
+  dataAsOf: string;
+  model: string;
+  promptVersion: string;
+  content: { headline: string; summary: string; highlights: string[]; guidance: string[]; warnings: string[] };
+  evidence: { source: string; station: string | null; observedAt: string | null; dataKind: string; url: string | null }[];
+};
+
+/** Latest stored AI Daily Air Brief (generated on a schedule, never on page load). */
+export async function getLatestDailyBrief(scope = "jaipur"): Promise<DailyBrief | null> {
+  "use cache";
+  cacheLife({ stale: 60, revalidate: 300, expire: 3600 });
+  cacheTag(AIR_QUALITY_CACHE_TAG);
+  const { data, error } = await createSupabasePublicClient()
+    .from("ai_daily_briefs")
+    .select("generated_at, data_as_of, model, prompt_version, content, evidence")
+    .eq("scope", scope)
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const content = data.content as Partial<DailyBrief["content"]> | null;
+  if (!content?.headline || !content.summary) return null;
+  return {
+    generatedAt: data.generated_at,
+    dataAsOf: data.data_as_of,
+    model: data.model,
+    promptVersion: data.prompt_version,
+    content: {
+      headline: content.headline,
+      summary: content.summary,
+      highlights: content.highlights ?? [],
+      guidance: content.guidance ?? [],
+      warnings: content.warnings ?? [],
+    },
+    evidence: (Array.isArray(data.evidence) ? data.evidence : []) as DailyBrief["evidence"],
+  };
 }

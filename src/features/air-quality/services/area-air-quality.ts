@@ -452,6 +452,8 @@ export type StationOverview = {
   name: string;
   latitude: number;
   longitude: number;
+  network: string | null;
+  operator: string | null;
   observedAt: string | null;
   aqi: { value: number; isLowerBound: boolean; category: string | null } | null;
 };
@@ -461,7 +463,7 @@ export async function getStationsOverview(db: Db, now: Date = new Date()): Promi
   const [{ data: stations, error: stationError }, sourceId] = await Promise.all([
     db
       .from("locations")
-      .select("id, name, latitude, longitude")
+      .select("id, name, latitude, longitude, metadata")
       .eq("location_type", "monitoring_station")
       .order("name"),
     getSourceId(db, "openaq"),
@@ -491,11 +493,14 @@ export async function getStationsOverview(db: Db, now: Date = new Date()): Promi
   return stations.map((station) => {
     const reading = latest.get(station.id);
     const aqi = reading?.aqi_index_values.find((row) => row.aqi_scale === "ind_cpcb");
+    const metadata = (station.metadata ?? {}) as { network?: string; operator?: string };
     return {
       id: station.id,
       name: station.name,
       latitude: station.latitude,
       longitude: station.longitude,
+      network: metadata.network ?? null,
+      operator: metadata.operator ?? null,
       observedAt: reading?.observed_at ?? null,
       aqi: aqi
         ? { value: aqi.aqi_value, isLowerBound: aqi.is_lower_bound, category: aqi.aqi_category }
@@ -536,4 +541,92 @@ export async function getStationHistory(
       ]),
     ),
   }));
+}
+
+export type AreaModelledOverview = {
+  slug: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  /** Latest modelled PM2.5 for the area's model grid cell, if stored in the last 6 hours. */
+  pm25: { value: number; unit: PollutantUnit; observedAt: string } | null;
+};
+
+/** Areas with their latest modelled PM2.5 (Open-Meteo). Never a station measurement. */
+export async function getAreasModelledOverview(db: Db, now: Date = new Date()): Promise<AreaModelledOverview[]> {
+  const [areas, sourceId] = await Promise.all([getAreas(db), getSourceId(db, "open_meteo")]);
+  if (!sourceId || areas.length === 0) return areas.map((area) => ({ ...area, pm25: null }));
+
+  const { data: locations, error: locationError } = await db
+    .from("locations")
+    .select("id, slug")
+    .in("slug", areas.map((area) => area.slug));
+  if (locationError) throw locationError;
+  const slugById = new Map(locations.map((row) => [row.id, row.slug]));
+
+  const { data, error } = await db
+    .from("aqi_readings")
+    .select("location_id, observed_at, pollutant_values!inner (pollutant, value, unit)")
+    .eq("source_id", sourceId)
+    .eq("data_kind", "modelled")
+    .eq("pollutant_values.pollutant", "pm25")
+    .in("location_id", locations.map((row) => row.id))
+    .lte("observed_at", now.toISOString())
+    .gte("observed_at", new Date(now.getTime() - 6 * HOUR).toISOString())
+    .order("observed_at", { ascending: false });
+  if (error) throw error;
+
+  const latest = new Map<string, AreaModelledOverview["pm25"]>();
+  for (const row of data) {
+    const slug = slugById.get(row.location_id);
+    const value = row.pollutant_values[0];
+    if (!slug || !value || latest.has(slug)) continue;
+    latest.set(slug, { value: value.value, unit: value.unit as PollutantUnit, observedAt: row.observed_at });
+  }
+  return areas.map((area) => ({
+    slug: area.slug,
+    name: area.name,
+    latitude: area.latitude,
+    longitude: area.longitude,
+    pm25: latest.get(area.slug) ?? null,
+  }));
+}
+
+export type StationPollutantReading = {
+  stationId: string;
+  value: number;
+  unit: PollutantUnit;
+  observedAt: string;
+};
+
+/** Latest measured value of one pollutant per station (mass units only), from the last 48 hours. */
+export async function getStationsLatestPollutant(
+  db: Db,
+  pollutant: "pm25" | "pm10",
+  now: Date = new Date(),
+): Promise<StationPollutantReading[]> {
+  const sourceId = await getSourceId(db, "openaq");
+  if (!sourceId) return [];
+  const { data, error } = await db
+    .from("aqi_readings")
+    .select("location_id, observed_at, pollutant_values!inner (pollutant, value, unit)")
+    .eq("source_id", sourceId)
+    .eq("data_kind", "measured")
+    .eq("pollutant_values.pollutant", pollutant)
+    .eq("pollutant_values.unit", "ug_m3")
+    .gte("observed_at", new Date(now.getTime() - 48 * HOUR).toISOString())
+    .order("observed_at", { ascending: false });
+  if (error) throw error;
+  const latest = new Map<string, StationPollutantReading>();
+  for (const row of data) {
+    const value = row.pollutant_values[0];
+    if (!value || latest.has(row.location_id)) continue;
+    latest.set(row.location_id, {
+      stationId: row.location_id,
+      value: value.value,
+      unit: value.unit as PollutantUnit,
+      observedAt: row.observed_at,
+    });
+  }
+  return [...latest.values()];
 }
