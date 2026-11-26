@@ -34,7 +34,7 @@ Supabase: Postgres · PostGIS · Storage · RLS · pg_cron (hourly jobs) · Vaul
 | AI photo reporter, anonymous civic reports ([civic-reports.md](civic-reports.md)) | Built |
 | City insights ([city-insights.md](city-insights.md)) | Built |
 | Health advisor ([health-advisor.md](health-advisor.md)) | Built |
-| Tests | 147 unit (Vitest, Gemini mocked), 141 end-to-end on 3 viewports (Playwright), 99 database (pgTAP) |
+| Tests | 165 unit (Vitest, Gemini mocked), 165 end-to-end on 3 viewports (Playwright), 99 database (pgTAP) |
 | Accounts | Deferred: not needed for the pilot. Settings is a labelled placeholder outside the navigation |
 
 ## Rendering
